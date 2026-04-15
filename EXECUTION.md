@@ -139,7 +139,7 @@ No parallelism. Each session strictly depends on the previous one's completion.
 
 ## Session 2 — Presentation + virtualization + cells
 
-**Status:** blocked on session 1
+**Status:** complete
 
 **Read list:**
 
@@ -214,21 +214,21 @@ No parallelism. Each session strictly depends on the previous one's completion.
 
 **Stopping criteria (automated — Claude verifies; no browser / no runtime rendering):**
 
-- [ ] `pnpm lint` passes.
-- [ ] `pnpm typecheck` passes.
-- [ ] `pnpm build` passes.
-- [ ] Grep: no antd imports anywhere in `src/components/DataGrid/` (antd is not used in session 2 at all).
-- [ ] Grep: no `CellRendererRegistry`, `byKey`, `byType`, or `DefaultCell` symbols anywhere in `src/`.
-- [ ] `TextCell` is exported from `src/components/DataGrid/cells/index.ts` and re-exported from `src/components/DataGrid/index.ts` — and is the ONLY cell exported in session 2.
-- [ ] `BodyCell.tsx` uses `column.cell ?? TextCell` (code inspection — no registry lookup, no separate `DefaultCell`).
-- [ ] `DataGrid.tsx` calls `useReactTable` with `manualPagination: true`, `manualSorting: true`, `manualFiltering: true`, and forwards controlled state from `gridProps` for sorting, pagination, visibility, order, sizing, pinning, and row selection.
-- [ ] `DataGrid.tsx` uses `useVirtualizer` with `overscan: 10` and a fixed row height from props.
-- [ ] Virtual row positioning uses `top: Npx` (not `transform`) per plan 02 (grep `VirtualRow.tsx`).
-- [ ] Sticky header is implemented with `position: sticky; top: 0` in the CSS module (grep).
-- [ ] `DataGrid.tsx` contains a dev-mode `useEffect` that checks `clientHeight === scrollHeight && data.length > 50` and logs to console (code inspection).
-- [ ] `DataGrid` is a `forwardRef` exposing `DataGridHandle = { scrollToRow, scrollToTop }` (type check).
-- [ ] `useDataGridContext` hook exists with a null-check and is consumed by `HeaderCell` and `BodyCell`; hot state (range, editor, drafts) is NOT on the context (code inspection).
-- [ ] Playground defines at minimum: one column with `cell: TextCell` explicitly set, one column with no `cell` set (fallback), one column whose accessor returns an object (demonstrates the `"[object Object]"` coercion), one column with an inline-custom `cell`, and one column with `align: 'right'` (code inspection).
+- [x] `pnpm lint` passes.
+- [x] `pnpm typecheck` passes.
+- [x] `pnpm build` passes.
+- [x] Grep: no antd imports anywhere in `src/components/DataGrid/` (antd is not used in session 2 at all).
+- [x] Grep: no `CellRendererRegistry`, `byKey`, `byType`, or `DefaultCell` symbols anywhere in `src/`.
+- [x] `TextCell` is exported from `src/components/DataGrid/cells/index.ts` and re-exported from `src/components/DataGrid/index.ts` — and is the ONLY cell exported in session 2.
+- [x] `BodyCell.tsx` uses `column.cell ?? TextCell` (code inspection — no registry lookup, no separate `DefaultCell`).
+- [x] `DataGrid.tsx` calls `useReactTable` with `manualPagination: true`, `manualSorting: true`, `manualFiltering: true`, and forwards controlled state from `gridProps` for sorting, pagination, visibility, order, sizing, pinning, and row selection.
+- [x] `DataGrid.tsx` uses `useVirtualizer` with `overscan: 10` and a fixed row height from props.
+- [x] Virtual row positioning uses `top: Npx` (not `transform`) per plan 02 (grep `VirtualRow.tsx`).
+- [x] Sticky header is implemented with `position: sticky; top: 0` in the CSS module (grep).
+- [x] `DataGrid.tsx` contains a dev-mode `useEffect` that checks `clientHeight === scrollHeight && data.length > 50` and logs to console (code inspection).
+- [x] `DataGrid` is a `forwardRef` exposing `DataGridHandle = { scrollToRow, scrollToTop }` (type check).
+- [x] `useDataGridContext` hook exists with a null-check and is consumed by `HeaderCell` and `BodyCell`; hot state (range, editor, drafts) is NOT on the context (code inspection).
+- [x] Playground defines at minimum: one column with `cell: TextCell` explicitly set, one column with no `cell` set (fallback), one column whose accessor returns an object (demonstrates the `"[object Object]"` coercion), one column with an inline-custom `cell`, and one column with `align: 'right'` (code inspection).
 
 **Manual QA (human — out of scope for Claude's stopping criteria):**
 
