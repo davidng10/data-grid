@@ -38,7 +38,8 @@ function useDataGrid<TRow, TFilters>(options: {
   // Notification channel for rule rejections (e.g., "max 40 columns")
   onWarn?: (message: string) => void
 }): {
-  // Spread onto <DataGrid />. Caller still supplies: data, columns, getRowId, cellRenderers, cellExtras, isLoading.
+  // Spread onto <DataGrid />. Caller still supplies: data, columns, getRowId, cellExtras, isLoading.
+  // (Columns carry their own `cell` components inline — there is no separate cellRenderers prop.)
   gridProps: Partial<DataGridProps<TRow>>
 
   // Semantic setters encode the transition rules
@@ -171,7 +172,6 @@ function ProductsPage() {
         isLoading={isLoading}
         getRowId={(row) => row.skuId}
         columns={columns}
-        cellRenderers={{ byKey: productByKeyRenderers }}
         cellExtras={{ onProductClick }}
       />
       <Pagination
@@ -185,6 +185,97 @@ function ProductsPage() {
   )
 }
 ```
+
+#### Products column construction
+
+The Products page maps each `Attribute` to a cell component and builds `DataGridColumnDef[]`. The grid never sees `Attribute.type` — the mapping is entirely on the page side.
+
+```ts
+import {
+  TextCell, NumberCell, SingleSelectCell, MultiSelectCell,
+  BooleanCell, DateCell, DateTimeCell, type CellRenderer,
+} from '@/components/DataGrid'
+
+// Domain type → grid cell component. Lives in the Products page code, not the grid library.
+function mapAttrToCell(attrType: Attribute['type']): CellRenderer<Product> {
+  switch (attrType) {
+    case 'TEXT':          return TextCell
+    case 'NUMBER':        return NumberCell
+    case 'SINGLE_SELECT': return SingleSelectCell
+    case 'MULTI_SELECT':  return MultiSelectCell
+    case 'BOOLEAN':       return BooleanCell
+    case 'DATE':          return DateCell
+    case 'DATETIME':      return DateTimeCell
+    case 'RICH_TEXT':     return TextCell   // phase 1 fallback; phase 2 may ship RTFCell
+  }
+}
+
+// Per-column custom renderer for SKU id — no registry needed, inline reference.
+const SkuLinkCell: CellRenderer<Product, string> = ({ value, extras }) => (
+  <a onClick={() => (extras.onProductClick as any)?.(value)}>{value}</a>
+)
+
+function buildProductColumns(attributes: Attribute[]): DataGridColumnDef<Product>[] {
+  const cols: DataGridColumnDef<Product>[] = []
+
+  // Fixed pinned-left: SKU ID with a custom link cell
+  cols.push({
+    id: 'sku.id',
+    header: 'SKU ID',
+    accessor: (row) => row.skuId,
+    cell: SkuLinkCell,
+    pin: 'left',
+    fixedPin: true,
+    fixedVisible: true,
+    fixedPosition: true,
+    width: 140,
+  })
+
+  // Fixed pinned-left: Product Name (plain text)
+  cols.push({
+    id: 'product.name',
+    header: 'Product Name',
+    accessor: (row) => row.name,
+    cell: TextCell,
+    pin: 'left',
+    fixedPin: true,
+    fixedVisible: true,
+    width: 240,
+  })
+
+  // Dynamic middle: every attribute, mapped via mapAttrToCell
+  for (const attr of attributes) {
+    cols.push({
+      id: `attr.${attr.id}`,
+      header: attr.name,
+      accessor: (row) => row.attributes[attr.id]?.value,
+      cell: mapAttrToCell(attr.type),
+      align: attr.type === 'NUMBER' ? 'right' : undefined,
+      editable: attr.type !== 'RICH_TEXT' && attr.isEditable,
+      width: 160,
+      meta: { sortable: attr.isSortable },
+    })
+  }
+
+  // Fixed pinned-right: Actions (consumer provides a custom cell that reads row + extras)
+  cols.push({
+    id: 'row.actions',
+    header: '',
+    accessor: () => null,
+    cell: ({ row, extras }) => (extras.renderRowActions as any)?.(row) ?? null,
+    pin: 'right',
+    fixedPin: true,
+    fixedVisible: true,
+    fixedPosition: true,
+    width: 80,
+    meta: { sortable: false },
+  })
+
+  return cols
+}
+```
+
+Note how per-column customization (SKU link, row actions) lives directly on the column def — no `cellRenderers.byKey` registry. The `cellExtras` passthrough is still used for handlers like `onProductClick` and `renderRowActions`.
 
 ### B) Orders page — no URL state, plain React state
 
@@ -265,7 +356,7 @@ Same `useDataGrid`, minimal config. No persistence. Most interactive features di
 
 - **No data fetching.** Caller owns the query and passes `data` + `rowCount` + `isLoading` to `<DataGrid />`.
 - **No column def construction.** Caller builds `columns`.
-- **No cell renderer definitions.** Caller provides `cellRenderers` and `cellExtras`.
+- **No cell renderer definitions.** Caller sets `cell` on each column. Built-in cells are exported from the library but consumers import and pass them explicitly. See `06_cell_rendering.md`.
 - **No URL state.** Caller owns the URL wire format.
 - **No BE schema awareness.** Filters are typed via the `TFilters` generic; the hook passes them through.
 - **No toast / notification UI.** Column config violations call the injected `onWarn`.

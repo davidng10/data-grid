@@ -1,7 +1,7 @@
 # 02 — Table Component (`<DataGrid />`)
 
 ## Responsibility
-Render the grid, manage the TanStack Table instance, lay out the three-track pinned structure, handle horizontal scroll sync, delegate row rendering to the virtualizer, delegate cell rendering to the registry. Owns single-column sort UI.
+Render the grid, manage the TanStack Table instance, lay out the sticky header + pinned columns inside a single scroll container, delegate row rendering to the virtualizer, delegate cell rendering to the registry. Owns single-column sort UI. Fills its parent container — caller is responsible for providing bounded dimensions.
 
 ## Library choices
 
@@ -13,75 +13,105 @@ Render the grid, manage the TanStack Table instance, lay out the three-track pin
 | `clsx` | Class merging. |
 | No antd | Not in the framework. OK inside consumer-supplied cell renderers. |
 
+## Sizing
+
+The grid fills its container. Caller provides a bounded parent. `<DataGrid />` is `display: flex; flex-direction: column; width: 100%; height: 100%`. No `width` / `height` props.
+
+Typical integrations:
+
+```tsx
+// A) Full-height page with a flex chain
+<div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+  <TopBar />
+  <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+    <DataGrid ... />
+  </div>
+</div>
+
+// B) Fixed-height container
+<div style={{ height: 600 }}>
+  <DataGrid ... />
+</div>
+
+// C) Inside a drawer / modal with a known content area
+<Drawer bodyStyle={{ display: 'flex', flexDirection: 'column', padding: 0 }}>
+  <DataGrid ... />
+</Drawer>
+```
+
+**The #1 integration gotcha:** if any ancestor in the chain has `height: auto`, the grid's scroll container has unbounded height, the virtualizer thinks it has infinite space, and every row renders at once. The usual cause is a flex child missing `min-height: 0`. Document this in the component's prop docs and in the example integrations. Consider a runtime dev-mode warning: on mount, if `bodyRef.current.clientHeight === bodyRef.current.scrollHeight && data.length > 50`, log a warning pointing at this gotcha.
+
 ## Internal structure
 
+**One scroll container. Sticky header inside it. Pinned columns use `position: sticky` on cells.** This replaces earlier three-rail + JS-scroll-sync drafts — it's simpler, pure CSS, and scales naturally with virtualization.
+
 ```
-<DataGrid>
-  <HeaderRow>
-    <PinnedLeftHeaders />
-    <ScrollableHeaders ref={headerMiddleRef} />   ← horizontal scroll mirrors body
-    <PinnedRightHeaders />
-  </HeaderRow>
-  <BodyContainer ref={bodyRef}>                   ← vertical scroll owner
-    <TotalHeightSpacer style={{ height: totalSize }}>
+<DataGrid> (display: flex, flex-direction: column, width: 100%, height: 100%, overflow: hidden)
+  <ScrollContainer ref={bodyRef}>            ← flex: 1, min-height: 0, overflow: auto
+    <Header>                                 ← position: sticky, top: 0, z-index: 2,
+                                                display: flex, height: headerHeight,
+                                                width: totalTableWidth
+      <HeaderCell id="sku.id" pinned="left"/>      ← position: sticky, left: 0, z-index: 3
+      <HeaderCell id="product.name" pinned="left"/> ← position: sticky, left: leftOffset, z-index: 3
+      <HeaderCell id="attr.color"/>                 ← normal flow
+      <HeaderCell id="attr.size"/>                  ← normal flow
+      <HeaderCell id="row.actions" pinned="right"/> ← position: sticky, right: 0, z-index: 3
+    </Header>
+
+    <VirtualSpacer>                          ← position: relative,
+                                                height: rowVirtualizer.getTotalSize(),
+                                                width: totalTableWidth
       {virtualRows.map(vr =>
-        <VirtualRow top={vr.start}>
-          <PinnedLeftCells />
-          <ScrollableCells ref={rowMiddleRef} />  ← horizontal scroll source (or sync)
-          <PinnedRightCells />
-        </VirtualRow>
+        <Row>                                ← position: absolute, top: vr.start, left: 0,
+                                                width: totalTableWidth, display: flex,
+                                                height: rowHeight
+          <Cell id="sku.id" pinned="left"/>         ← position: sticky, left: 0, z-index: 1
+          <Cell id="product.name" pinned="left"/>   ← position: sticky, left: leftOffset, z-index: 1
+          <Cell id="attr.color"/>                   ← normal flow
+          <Cell id="attr.size"/>                    ← normal flow
+          <Cell id="row.actions" pinned="right"/>   ← position: sticky, right: 0, z-index: 1
+        </Row>
       )}
-    </TotalHeightSpacer>
-  </BodyContainer>
+    </VirtualSpacer>
+  </ScrollContainer>
 </DataGrid>
 ```
 
-## Three-track layout primitive
+Two children of `ScrollContainer`: the sticky header and the virtual spacer. That's it.
 
-The header and every row are each split into three horizontal zones:
+### Why sticky header + sticky cells (dropped the three-rail approach)
 
-- **Pinned-left zone** — `position: sticky; left: 0` relative to its scroll container.
-- **Scrollable middle zone** — the only track that scrolls horizontally.
-- **Pinned-right zone** — `position: sticky; right: 0`.
+- **One scroll owner, not two.** Header and body cannot de-sync during jank because they share the same scroll container. No `scrollLeft` listener, no JS sync, no `rAF` throttling to worry about.
+- **Pinned header corners "just work."** The top-left SKU header cell has `position: sticky; top: 0; left: 0` — sticky pins it in both axes simultaneously. No special "corner" logic.
+- **Pure CSS scales with row count.** Adding virtualized rows doesn't change the layout primitive.
 
-Width allocation:
-- Pinned-left and pinned-right widths are the sum of their column widths (clamped to minWidth/maxWidth per column via sizing state).
-- The middle zone is `flex: 1` with `min-width: 0` and `overflow-x: auto`.
+### Critical: do NOT use `transform` to position virtual rows
 
-Vertical vs horizontal scroll:
-- Vertical scroll is owned by `BodyContainer`. Header does NOT scroll vertically.
-- Horizontal scroll is owned by the body's middle-zone container (each `VirtualRow` shares the same parent scroller — NOT a per-row scroller).
+TanStack Virtual's docs often show `transform: translate3d(0, ${start}px, 0)` for virtual row positioning. **Don't use that here.** A transformed ancestor breaks `position: sticky` in Safari and older Chrome — the sticky header and sticky cells silently fail.
 
-### Avoiding per-row horizontal scrollers (important)
+Use `top: ${vr.start}px` with `position: absolute` instead. Performance is equivalent for this use case (absolute positioning is compositor-friendly; `will-change: transform` does not help when we can't use transform).
 
-Do NOT put `overflow-x: auto` on each `VirtualRow`. That creates N independent scrollers that desync and destroy perf. Instead:
+### Z-index layers
 
-- The body has a single horizontal scroller wrapping the virtualized rows' middle-zone content.
-- Inside that scroller, each virtual row's middle zone is `display: flex` with total width = sum of middle column widths, no internal scroll.
-- Pinned-left and pinned-right zones live OUTSIDE the horizontal scroller (as siblings) so they don't move with `scrollLeft`.
+| Element | z-index | Why |
+|---|---|---|
+| Pinned header cells (top corners) | 3 | Above everything else |
+| Header row (non-pinned cells) | 2 | Above body rows |
+| Pinned body cells | 1 | Above non-pinned body cells |
+| Non-pinned body cells | 0 (default) | Baseline |
 
-Sketch:
-```
-<BodyContainer>                               vertical scroll
-  <LeftRail>                                  sticky-left (zone 1)
-    <VirtualizedRowsLeft />
-  </LeftRail>
-  <MiddleScroller>                            horizontal scroll (zone 2)
-    <VirtualizedRowsMiddle />
-  </MiddleScroller>
-  <RightRail>                                 sticky-right (zone 3)
-    <VirtualizedRowsRight />
-  </RightRail>
-</BodyContainer>
-```
+Background color is required on header cells and pinned cells so content below doesn't bleed through when they're sticky. Use a solid color matching the grid's background.
 
-This means the virtualizer must coordinate three sub-trees that all render the same row indices at the same `top` offsets. They share one `rowVirtualizer` instance.
+### Width management
 
-### Alternative: single-scroller with sticky columns
+- Each visible column has a width from `columnSizing` state (or default from `DataGridColumnDef.width`).
+- `totalTableWidth = sum of all visible column widths` (including pinned).
+- Header and each virtual row are `width: ${totalTableWidth}px`.
+- If `totalTableWidth < ScrollContainer.clientWidth`, the table is left-aligned; empty space on the right. Acceptable default. "Flex last column to fill" as an opt-in per column — defer to v2.
 
-Some grids use one scroller and rely on `position: sticky; left: 0` for pinned columns. This is simpler but has a limitation: sticky cells are siblings of scrollable cells in the same flex row, which makes `z-index` stacking and shadows trickier. Known to work.
+### Left/right pinned offsets
 
-**Decision for v1: single-scroller with sticky columns.** Simpler. If we hit layout bugs with sticky + resize + virt, fall back to three-rail. Flag for confirmation.
+Pinned-left cells use `position: sticky; left: N` where N is the cumulative width of all pinned-left columns to this one's left. Same for pinned-right from the right edge. Computed once per render from the column sizing state. Store as a `Map<columnId, number>` alongside column definitions.
 
 ## TanStack Table wiring
 
@@ -126,22 +156,6 @@ const table = useReactTable({
 - `allowSorting: false` hides indicators and disables click handler.
 - Per-column opt-out via `meta.sortable === false` (e.g., action column, multi-select columns that the BE doesn't support sorting on).
 
-## Horizontal scroll sync
-
-Header must mirror body's `scrollLeft`:
-
-```ts
-const onBodyMiddleScroll = (e) => {
-  if (headerMiddleRef.current) {
-    headerMiddleRef.current.scrollLeft = e.currentTarget.scrollLeft
-  }
-}
-```
-
-- Body is the source of truth. Header is read-only receiver. No reverse sync.
-- If header is scrollable by user (shouldn't be — `overflow-x: hidden`), disable the receive handler.
-- Use `rAF` throttling only if profiling shows jank. Start without.
-
 ## Loading and empty states
 
 | State | Render |
@@ -152,17 +166,18 @@ const onBodyMiddleScroll = (e) => {
 
 ## Single-column sort — interaction with server
 
-The grid calls `onSortingChange(next)`. The hook (`useProductsGrid`) translates this into a new BE request and resets `pageIndex` to 0. Sort state is persisted per-view (see `07_url_and_persistence.md`).
+The grid calls `onSortingChange(next)`. `useDataGrid`'s `setSort` applies the transition rules (`pageIndex` → 0, clear row selection, clear range) and calls `onViewChange` — the page refetches from the updated `view`.
 
 ## Pagination controls
 
 - The grid does NOT render a pagination footer. That's a page concern.
-- The hook exposes `{ pageIndex, pageSize, total, setPage, setPageSize }` for the page to render its own footer.
-- The grid receives `pagination` as a prop and calls `onPaginationChange` when a keyboard shortcut or some internal action changes it (currently none in phase 1).
+- The page renders its own footer using `view.pageIndex`, `view.pageSize`, `data?.total`, and `grid.setPage` / `grid.setPageSize` from `useDataGrid`.
+- The grid receives `pagination` as a prop and calls `onPaginationChange` only when a keyboard shortcut or internal action changes it (none in phase 1).
 
 ## Open / TBD
 
-- **Sticky vs three-rail layout.** I default to sticky columns in a single scroller. Need to prototype before committing, because sticky columns have known issues with `transform`-positioned virtualized rows (hardware acceleration can detach them). If it breaks, fall back to three-rail.
-- **Header height configurable per column?** No in v1 — one global `headerHeight`.
-- **Column groups / multi-level headers?** Out of scope.
-- **Keyboard shortcut for "go to first/last page" inside the grid?** No — page footer owns that.
+- **Dev-mode warning for unbounded height.** On mount, detect `clientHeight === scrollHeight && data.length > 50` and log a clear warning pointing to the Sizing section. Worth the 5 lines of code — this gotcha will bite every new integrator.
+- **Column groups / multi-level headers.** Out of scope v1.
+- **Keyboard shortcut for "first/last page" inside the grid.** No — page footer owns it.
+- **"Flex last column to fill"** when `totalTableWidth < ScrollContainer.clientWidth`. Opt-in per column (`DataGridColumnDef.flex: true`). Defer to v2.
+- **Sticky shadow affordance.** Right edge of pinned-left and left edge of pinned-right should cast a subtle box-shadow when the user has scrolled horizontally (indicates "there's more beyond"). Detect via `scrollLeft > 0` and `scrollLeft < scrollWidth - clientWidth`. Small polish — include if cheap, defer if finicky.

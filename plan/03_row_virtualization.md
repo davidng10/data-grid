@@ -27,9 +27,11 @@ const totalSize = rowVirtualizer.getTotalSize()
 const virtualRows = rowVirtualizer.getVirtualItems()
 ```
 
-- Body container: `position: relative; overflow-y: auto`.
-- Total-height spacer: `position: relative; height: ${totalSize}px; width: 100%`.
-- Each virtual row: `position: absolute; top: ${virtualRow.start}px; left: 0; right: 0; height: ${rowHeight}px; display: flex`.
+- `ScrollContainer` (aka `bodyRef`): `flex: 1; min-height: 0; overflow: auto` (both axes — horizontal for pinned-column scroll, vertical for virtualization).
+- `VirtualSpacer` (virtualization total-height element): `position: relative; height: ${totalSize}px; width: ${totalTableWidth}px`.
+- Each virtual row: `position: absolute; top: ${virtualRow.start}px; left: 0; width: ${totalTableWidth}px; height: ${rowHeight}px; display: flex`.
+
+**Do NOT use `transform: translate3d(0, start, 0)` for row positioning.** See `02_table_component.md` — a transformed ancestor breaks `position: sticky` on the header and pinned columns in Safari. Use `top` with `position: absolute` instead. Performance is equivalent for this use case.
 
 ## Overscan tuning
 
@@ -42,7 +44,7 @@ const virtualRows = rowVirtualizer.getVirtualItems()
 
 **Solution.** Editor state lives *above* the virtualizer.
 
-1. `activeEditor: { rowId, columnId, draftValue } | null` is a top-level state held in `useProductsGrid` (or in the `<DataGrid />` itself if uncontrolled). It is NOT stored on the cell component.
+1. `activeEditor: { rowId, columnId, draftValue } | null` is a top-level state held inside `useDataGrid` (phase 1 keeps it internal; phase 2 may lift it to controlled). It is NOT stored on the cell component.
 2. When a cell renders and its `{ rowId, columnId }` matches `activeEditor`, it renders in edit mode, initialized from `activeEditor.draftValue`.
 3. When a cell in edit mode unmounts (scrolled out), React calls its cleanup — the cell calls `onActiveEditorChange({ ...activeEditor, draftValue: currentDraft })` to push the latest draft up before unmounting.
 4. When the user scrolls back and the row re-mounts, the cell sees `activeEditor` still matches and re-enters edit mode with the preserved draft.

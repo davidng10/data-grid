@@ -107,7 +107,7 @@ The modal holds a local "pending visibility" state while open. It does NOT call 
 - If parse fails entirely: start from defaults, silently.
 
 ### Where the modal lives
-Outside the `<DataGrid />` component. The hook (`useProductsGrid`) exposes `{ columnConfig: { open, isOpen, ... } }` and the page renders the modal. This keeps the grid free of modal/dialog dependencies.
+Outside the `<DataGrid />` component. The page owns the modal entirely — it reads `columnConfig` from wherever it's persisted (e.g., `useLocalStorageColumnConfig`), renders the modal when the user clicks a "Columns" button (placement is the page's choice), and calls `setColumnConfig(next)` on Apply. The grid just receives the final `columnVisibility` via `useDataGrid` → `gridProps`. No modal/dialog dependency in the grid framework.
 
 ## Open / TBD
 

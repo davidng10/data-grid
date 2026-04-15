@@ -66,8 +66,10 @@ type DataGridProps<TRow> = {
   onColumnPinningChange?: OnChangeFn<{ left: string[]; right: string[] }>
 
   // Phase 2 seam — active edit cell + draft value lives above the virtualizer
+  // (see 06_cell_rendering.md inline-edit architecture section)
   activeEditor?: { rowId: string; columnId: string; draftValue: unknown } | null
   onActiveEditorChange?: OnChangeFn<{ rowId: string; columnId: string; draftValue: unknown } | null>
+  onCommitEdit?: (update: { rowId: string; columnId: string; value: unknown }) => void | Promise<void>
 
   // Feature flags (default true unless noted)
   allowSorting?: boolean
@@ -84,12 +86,10 @@ type DataGridProps<TRow> = {
   headerHeight?: number            // default 40
   overscan?: number                // default 10 rows
 
-  // Renderer registries
-  cellRenderers?: {
-    byKey?: Record<string, CellRenderer<TRow>>
-    byType?: Record<string, CellRenderer<TRow>>
-  }
-  cellExtras?: Record<string, unknown>   // passthrough to cells (e.g. onProductClick)
+  // Consumer passthrough to cell renderers (e.g., onProductClick handlers).
+  // There is NO cellRenderers prop — cell components are declared inline on each column
+  // via `column.cell`. See `06_cell_rendering.md` for the rationale.
+  cellExtras?: Record<string, unknown>
 
   // Callbacks (phase 1)
   onRangeContextMenu?: (e: MouseEvent, range: CellRange) => void
@@ -104,12 +104,16 @@ type DataGridProps<TRow> = {
 ## Column def
 
 ```ts
-type DataGridColumnDef<TRow> = {
+type DataGridColumnDef<TRow, TValue = unknown> = {
   id: string
   header: string | ((ctx: HeaderContext<TRow>) => ReactNode)
-  accessor: (row: TRow) => unknown
-  type: AttributeType   // 'text' | 'number' | 'single-select' | 'multi-select' | 'rtf' | 'boolean' | 'date' | 'datetime' | ...
+  accessor: (row: TRow) => TValue
 
+  // Rendering — NO type enum. Consumers pass a component directly, or rely on DefaultCell.
+  cell?: CellRenderer<TRow, TValue>   // defaults to DefaultCell (renders String(value ?? ''))
+  align?: 'left' | 'right' | 'center' // pure styling hint, honored by DefaultCell and built-ins
+
+  // Sizing
   width?: number        // default 160
   minWidth?: number     // default 60
   maxWidth?: number     // default 800
@@ -120,17 +124,18 @@ type DataGridColumnDef<TRow> = {
   fixedPosition?: boolean         // user cannot reorder (acts as a wall within its zone)
   fixedVisible?: boolean          // user cannot hide (checkbox disabled + checked in the config modal)
 
-  // Phase 2
+  // Phase 2: grid wires dblclick/Enter to enter edit mode only when editable === true
   editable?: boolean
 
   // Metadata
   meta?: {
     sortable?: boolean            // default true if allowSorting is on
-    isSystemAttribute?: boolean
     [k: string]: unknown
   }
 }
 ```
+
+The grid ships **no `type` field** and **no cell registry**. Cells are declared directly on each column via `column.cell`. See `06_cell_rendering.md` for the full rationale and the list of built-in cell components that consumers import and pass in.
 
 ### Why three separate `fixed*` flags
 
@@ -179,6 +184,88 @@ useDataGrid routes through a semantic setter (applies transition rules)
 
 Every durable state change round-trips through the page. Transient state round-trips internally through `useDataGrid`. The grid has no internal source of truth beyond what the hook gives it.
 
+## State management
+
+### Inventory
+
+| State | Owner | Change frequency |
+|---|---|---|
+| `view` (page, sort, filters) | Page (external to the grid) | Low |
+| `columnConfig` (visibility, order, sizing, pinning) | Page (external) | Low; medium during resize drag |
+| `rowSelection` | `useDataGrid` internal | Low (click-driven) |
+| `cellRangeSelection` | `useDataGrid` internal | **High during drag** (every mousemove) |
+| `activeEditor` | `useDataGrid` internal | Low (enter/exit); `draftValue` changes per keystroke but only one cell cares |
+| Scroll metrics (for sticky shadows) | `<DataGrid />` local ref | High but only the shadow divs re-render |
+| TanStack Table instance | `<DataGrid />` local | Derived from the above |
+| Cell-local UI (date picker open, etc.) | Cell component `useState` | Local, never leaks out |
+
+### Prop drilling depth
+
+Three levels max inside `<DataGrid />`:
+
+```
+<DataGrid />
+  → HeaderRow → HeaderCell              (2 levels)
+  → VirtualRow → BodyCell → cell        (3 levels)
+```
+
+Row-level props (`row`, `rowId`, `value`, `isInRange`) are per-cell — there's nothing to hoist into Context because they differ for every node anyway. Drilling them is fine.
+
+### Context — one for stable shared state
+
+One `DataGridContext` holds state that rarely or never changes during a render pass:
+
+```ts
+type DataGridContextValue<TRow> = {
+  table: Table<TRow>               // the TanStack Table instance
+  cellExtras: Record<string, unknown>  // consumer passthrough (onProductClick, etc.)
+  featureFlags: {                  // the allow* flags, resolved
+    sorting: boolean
+    pinning: boolean
+    reorder: boolean
+    resize: boolean
+    columnVisibility: boolean
+    rowSelection: boolean
+    rangeSelection: boolean
+    inlineEdit: boolean
+  }
+  scrollMetricsRef: RefObject<{ scrollLeft: number; scrollWidth: number; clientWidth: number }>
+}
+```
+
+- Provided at `<DataGrid />` top level.
+- Consumed by `HeaderCell`, `BodyCell`, and cell components via a small `useDataGridContext()` hook.
+- Avoids drilling `cellExtras` and feature flags through 3 levels of components.
+- Changes rarely (feature flags never; table instance only on state updates that'd re-render everything anyway; scroll metrics via mutable ref, no re-render).
+
+**Why this doesn't trigger the "Context causes re-render avalanche" problem:** the value is memoized upfront (stable `table` ref, stable `featureFlags` object, stable `scrollMetricsRef`). Context consumers re-render only when the memoized object identity changes — which happens on the same intervals as the component tree already re-renders.
+
+### No external store in phase 1
+
+Hot state (`cellRangeSelection` during drag, `activeEditor` draft changes) uses plain prop drilling + `React.memo` with shallow comparators on cell components. At 100 rows × 40 columns = 4000 cells, the per-mousemove re-render cost is expected to be acceptable after memoization short-circuits unchanged cells.
+
+**If profiling shows range-drag is slow** (Chrome Performance flamegraph, not vibes), add a tiny `useSyncExternalStore`-based selection store:
+
+- ~30 lines, zero dependencies
+- Cells subscribe to a selector: `useCellIsInRange(rowIndex, columnId)` → `boolean`
+- Only cells whose derived boolean changed re-render
+- Cuts work from O(all visible cells) to O(range perimeter)
+- Migration is internal to `<DataGrid />` — cell component API does not change
+
+This is the only state-management pattern we'd add later. **Not shipping it in phase 1.** Don't pre-optimize a problem that might not exist at our scale.
+
+### Explicitly rejected
+
+- **Redux / Jotai / Zustand.** Overkill for a single component's internal state. `useDataGrid` + `DataGridContext` covers everything durable. A custom `useSyncExternalStore` covers hot state only if needed.
+- **Global state.** The grid can be instantiated multiple times on the same page; nothing grid-owned touches module-level singletons.
+- **Context for hot state** (range selection, draft values). Vanilla `React.createContext` triggers a re-render on every change for every consumer — exactly what we want to avoid. If we need a "store-shaped Context," that's the `useSyncExternalStore` pattern above, not plain Context.
+
+### What this means for session implementers
+
+- **Session 1 (`useDataGrid`):** zero Context, zero stores. `useState` + memoized setters. The hook stays dumb.
+- **Session 2 (`<DataGrid />`):** create `DataGridContext` at the component top. Memoize its value. All cell / header components consume via `useDataGridContext()` for stable shared state. Prop-drill everything else.
+- **Session 4 (selection):** plain prop drilling + `React.memo`. Do NOT reach for a store unless you've profiled and it's clearly the bottleneck. If it is, the store pattern lives inside `<DataGrid />`'s internals — doesn't touch the public cell component API.
+
 ## File layout (proposed)
 
 ```
@@ -225,7 +312,7 @@ src/pages/products/              // example consumer — NOT part of the grid li
   useProductsQuery.ts
   useAttributesQuery.ts
   buildProductColumns.ts         // plain function: (attributes) -> DataGridColumnDef[]
-  productCellRenderers.tsx       // the byKey registry for SKU link / row actions / etc.
+  productCells.tsx               // custom cell components: SkuLinkCell, RowActionsCell, etc.
 ```
 
 ## Open / TBD

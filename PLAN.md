@@ -38,7 +38,7 @@ Three layers:
 5. **Column config persistence** (when used) is per `tableInstanceId` via the optional `useLocalStorageColumnConfig` helper. Key `datagrid:config:<instanceId>:v1`. Each consumer names their grid. Opting out is trivial — pass `useState` instead.
 6. **Max 40 visible columns** enforced in the column config modal. On load, if persisted state exceeds 40, trim with a one-time toast.
 7. **DnD library: @dnd-kit** (smaller, modern, good with sticky/virt).
-8. **Cell renderer resolution:** `fixedKeyRegistry[column.id] ?? typeRegistry[column.type] ?? DefaultCell`. Cells receive a stable `DataGridCellProps` contract including the editing-mode seam.
+8. **Cell rendering is fully decoupled.** No type enum, no registry, no lookup. Each column declares its `cell` component inline on the column def (`column.cell?: CellRenderer<TRow, TValue>`). Falls back to `DefaultCell` which renders `String(value ?? '')` — ugly for non-strings, intentionally so. Built-in cells (`TextCell`, `NumberCell`, `DateCell`, etc.) are library exports that consumers import and pass explicitly. Built-ins handle both display and edit modes, so `editable: true` columns using them get inline editing for free. Cells receive a stable `DataGridCellProps` contract including the phase-2 editing seam (`isEditing`, `draftValue`, `setDraftValue`, `commitEdit`, `cancelEdit`).
 9. **Three-track layout:** `[pinnedLeft][scrollableMiddle][pinnedRight]`. Only the middle track scrolls horizontally. Reorder and DnD are scoped within each zone (user cannot drag between zones — use the column header menu to change pin state instead).
 10. **Data fetching is the page's concern.** TanStack Query is recommended (for `keepPreviousData` + future caching), but `useDataGrid` has no dependency on it.
 11. **Transition rules encoded in the hook's semantic setters:**
@@ -74,6 +74,10 @@ Per-type editor components, commit/cancel wiring to a BE mutation, optimistic up
 - **localStorage accumulation.** Months of use without eviction will grow. Plan: LRU cap at 50 entries per `tableInstanceId`, cleaned on write.
 - **Column config schema evolution.** Use a versioned key. Validate on read. Don't crash on unknown columns.
 
+## Execution
+
+Session-by-session build plan: [`EXECUTION.md`](./EXECUTION.md). Read at the start of every fresh Claude session — each session is self-briefable from files on disk (context resets between sessions). Four sessions: foundation → presentation + virt → column features → selection + polish + README.
+
 ## Sub-plans
 
 Each file in `plan/` covers one slice. Read in order on first pass; edit independently.
@@ -86,6 +90,7 @@ Each file in `plan/` covers one slice. Read in order on first pass; edit indepen
 6. [`plan/06_cell_rendering.md`](./plan/06_cell_rendering.md) — fixed-key + type registries, cell props contract, inline edit seam
 7. [`plan/07_url_and_persistence.md`](./plan/07_url_and_persistence.md) — persistence guidance + the optional `useLocalStorageColumnConfig` helper; explicit rationale for why URL state is NOT a grid concern
 8. [`plan/08_data_source_hook.md`](./plan/08_data_source_hook.md) — `useDataGrid` contract, transition rules, gridProps assembly, three integration examples (Products / Orders / drawer)
+9. [`plan/09_component_readme.md`](./plan/09_component_readme.md) — **draft** of the component-level `src/components/DataGrid/README.md`. Copied verbatim to its final location when we scaffold the component. Integration guide with all sizing gotchas (flex chains, `minHeight: 0`, `height: auto`, page-level-scroll conflict, Safari `transform` + sticky, filter-animation jitter, dev-mode warning). Keep updated during planning.
 
 ## Open questions I'd still like answered
 
