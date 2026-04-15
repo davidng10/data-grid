@@ -42,6 +42,14 @@ export type CellRange = {
 
 export type CellRangeSelection = CellRange;
 
+export type DataGridHandle = {
+  scrollToRow: (
+    rowIndex: number,
+    options?: { align?: "start" | "center" | "end" },
+  ) => void;
+  scrollToTop: () => void;
+};
+
 export type DataGridView<TFilters> = {
   pageIndex: number;
   pageSize: number;
