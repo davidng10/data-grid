@@ -190,23 +190,27 @@ function ProductsPage() {
 
 The Products page maps each `Attribute` to a cell component and builds `DataGridColumnDef[]`. The grid never sees `Attribute.type` — the mapping is entirely on the page side.
 
+> **Phase 1 note.** Phase 1 ships only `TextCell`. The `mapAttrToCell` below is the **future-state** design, kept here so integrators know what the mapping will look like once richer cells exist. In phase 1, every branch resolves to `TextCell` — either inline the fallback or write per-column custom cells for anything that needs type-aware rendering.
+
 ```ts
 import {
   TextCell, NumberCell, SingleSelectCell, MultiSelectCell,
   BooleanCell, DateCell, DateTimeCell, type CellRenderer,
 } from '@/components/DataGrid'
+// Phase 1 only exports TextCell. The other imports are illustrative of the
+// future library surface and will not resolve until those cells ship.
 
 // Domain type → grid cell component. Lives in the Products page code, not the grid library.
 function mapAttrToCell(attrType: Attribute['type']): CellRenderer<Product> {
   switch (attrType) {
     case 'TEXT':          return TextCell
-    case 'NUMBER':        return NumberCell
-    case 'SINGLE_SELECT': return SingleSelectCell
-    case 'MULTI_SELECT':  return MultiSelectCell
-    case 'BOOLEAN':       return BooleanCell
-    case 'DATE':          return DateCell
-    case 'DATETIME':      return DateTimeCell
-    case 'RICH_TEXT':     return TextCell   // phase 1 fallback; phase 2 may ship RTFCell
+    case 'NUMBER':        return NumberCell        // future
+    case 'SINGLE_SELECT': return SingleSelectCell  // future
+    case 'MULTI_SELECT':  return MultiSelectCell   // future
+    case 'BOOLEAN':       return BooleanCell       // future
+    case 'DATE':          return DateCell          // future
+    case 'DATETIME':      return DateTimeCell      // future
+    case 'RICH_TEXT':     return TextCell
   }
 }
 

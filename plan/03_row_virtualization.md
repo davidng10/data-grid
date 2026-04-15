@@ -59,11 +59,13 @@ const virtualRows = rowVirtualizer.getVirtualItems()
 
 ## Scroll reset rules
 
+> **Status: deferred.** The rules below are the long-term design, but **not implemented in phase 1**. Deferred pending further discussion about the bidirectional coupling between the grid (scroll owner, owns `bodyRef`) and the hook (view state owner). Today the grid does **not** reset scroll on page / sort / filter change. Do not add this in session 2 or 3 — wait for explicit direction from the user.
+
 | Event | Reset scroll to top? |
 |---|---|
-| Page change | Yes |
-| Sort change | Yes |
-| Filter change (via props) | Yes |
+| Page change | Yes (deferred) |
+| Sort change | Yes (deferred) |
+| Filter change (via props) | Yes (deferred) |
 | Column visibility change | No |
 | Column reorder | No |
 | Column resize | No |

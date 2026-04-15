@@ -109,9 +109,9 @@ type DataGridColumnDef<TRow, TValue = unknown> = {
   header: string | ((ctx: HeaderContext<TRow>) => ReactNode)
   accessor: (row: TRow) => TValue
 
-  // Rendering — NO type enum. Consumers pass a component directly, or rely on DefaultCell.
-  cell?: CellRenderer<TRow, TValue>   // defaults to DefaultCell (renders String(value ?? ''))
-  align?: 'left' | 'right' | 'center' // pure styling hint, honored by DefaultCell and built-ins
+  // Rendering — NO type enum. Consumers pass a component directly, or rely on TextCell.
+  cell?: CellRenderer<TRow, TValue>   // defaults to TextCell (renders String(value ?? ''))
+  align?: 'left' | 'right' | 'center' // pure styling hint, honored by TextCell
 
   // Sizing
   width?: number        // default 160
@@ -283,15 +283,8 @@ src/components/DataGrid/
     VirtualRow.tsx
     BodyCell.tsx
   cells/
-    DefaultCell.tsx
-    TextCell.tsx
-    NumberCell.tsx
-    SingleSelectCell.tsx
-    MultiSelectCell.tsx
-    RTFCell.tsx
-    BooleanCell.tsx
-    DateCell.tsx
-    CheckboxCell.tsx           // for row selection column
+    TextCell.tsx               // the only built-in cell in phase 1; also serves as the fallback
+    CheckboxCell.tsx           // for the row selection column (session 4)
   selection/
     useCellRangeSelection.ts
     useRowSelection.ts

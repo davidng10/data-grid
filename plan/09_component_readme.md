@@ -15,8 +15,6 @@ import {
   DataGrid,
   useDataGrid,
   TextCell,
-  NumberCell,
-  DateCell,
   type DataGridColumnDef,
   type DataGridView,
 } from '@/components/DataGrid'
@@ -25,10 +23,10 @@ import { useLocalStorageColumnConfig } from '@/hooks/useLocalStorageColumnConfig
 type Row = { id: string; name: string; price: number; createdAt: string }
 
 const columns: DataGridColumnDef<Row>[] = [
-  { id: 'id',        header: 'ID',       accessor: (r) => r.id,        cell: TextCell },
-  { id: 'name',      header: 'Name',     accessor: (r) => r.name,      cell: TextCell },
-  { id: 'price',     header: 'Price',    accessor: (r) => r.price,     cell: NumberCell, align: 'right', editable: true },
-  { id: 'createdAt', header: 'Created',  accessor: (r) => r.createdAt, cell: DateCell },
+  { id: 'id',        header: 'ID',      accessor: (r) => r.id,        cell: TextCell },
+  { id: 'name',      header: 'Name',    accessor: (r) => r.name,      cell: TextCell },
+  { id: 'price',     header: 'Price',   accessor: (r) => r.price,     cell: TextCell, align: 'right' },
+  { id: 'createdAt', header: 'Created', accessor: (r) => r.createdAt, cell: TextCell },
 ]
 
 function MyPage() {
@@ -219,27 +217,22 @@ Non-negotiable inside the hook. If your page needs different semantics, wrap the
 The grid has **no cell type enum** and **no cell registry**. Every column declares its cell component directly on the column def:
 
 ```ts
-{ id: 'price', header: 'Price', accessor: (r) => r.price, cell: NumberCell, align: 'right' }
+{ id: 'price', header: 'Price', accessor: (r) => r.price, cell: TextCell, align: 'right' }
 ```
 
-If you omit `cell`, the grid falls back to `DefaultCell` which renders `String(value ?? '')`. For anything non-string — arrays, objects, dates — that output is intentionally ugly as a signal to set a `cell`.
+If you omit `cell`, the grid falls back to `TextCell` which renders `String(value ?? '')`. For anything non-string — arrays, objects, dates — that output is intentionally ugly as a signal to write a custom `cell`.
 
 ### Built-in cells (import and use)
 
+Phase 1 ships exactly one:
+
 ```ts
-import {
-  TextCell,          // plain text, ellipsis overflow, title tooltip
-  NumberCell,        // right-aligned, locale thousands separator
-  SingleSelectCell,  // colored tag
-  MultiSelectCell,   // chips with "+N more" overflow
-  BooleanCell,       // check / cross icon
-  DateCell,          // locale date
-  DateTimeCell,      // locale datetime
-  DefaultCell,       // the fallback — rarely imported directly
-} from '@/components/DataGrid'
+import { TextCell } from '@/components/DataGrid'
 ```
 
-Each built-in cell handles **both** display mode and edit mode (phase 2) — if you set `editable: true` on a column using `cell: NumberCell`, you get an inline editing experience for free. Custom cells opt in to edit mode by handling the `isEditing` / `draftValue` / `commitEdit` / `cancelEdit` props in `DataGridCellProps`.
+That's the whole library surface for cells today. `TextCell` is display-only, uses `String(value ?? '')`, respects `align`, and doubles as the implicit fallback when `column.cell` is unset — there is no separate `DefaultCell`.
+
+Richer built-ins (`NumberCell`, `SingleSelectCell`, `MultiSelectCell`, `BooleanCell`, `DateCell`, `DateTimeCell`, etc.) are **deferred future work**. Until they land, write a custom cell inline on the column for anything fancier than plain-text coercion. See "Custom cells" below.
 
 ### Custom cells — inline on the column
 
@@ -313,7 +306,7 @@ A: Set `cell: MyCustomCell` directly on that column's `DataGridColumnDef`. There
 A: Your `accessor` returns an object. Either change the accessor to return a primitive (`(row) => row.nested.value`) or pass a custom `cell` that knows how to render the object shape. The default cell is intentionally dumb about objects.
 
 **Q: I want an editable text column but my custom cell doesn't respond to double-click.**
-A: Custom cells must handle the `isEditing` / `draftValue` / `commitEdit` / `cancelEdit` props — see the "Cell rendering" section. Or just use `cell: TextCell` on an `editable: true` column and get editing for free.
+A: Inline editing is not implemented in phase 1 — `allowInlineEdit` is false and the `isEditing` seam exists but is dormant. Phase 2 will wire it up; until then, setting `editable: true` does nothing visible.
 
 **Q: How do I persist view state across refreshes?**
 A: The grid doesn't do it. Write a page-level hook that reads from URL / localStorage / server and passes `[view, setView]` to `useDataGrid`. The existing Products page is the reference.

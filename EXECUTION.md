@@ -46,7 +46,7 @@ No parallelism. Each session strictly depends on the previous one's completion.
 
 ## Session 1 — Foundation
 
-**Status:** not started
+**Status:** complete
 
 **Read list** (in order):
 
@@ -103,16 +103,16 @@ No parallelism. Each session strictly depends on the previous one's completion.
 
 **Stopping criteria (automated — Claude verifies; no browser / no runtime rendering):**
 
-- [ ] `pnpm lint` passes.
-- [ ] `pnpm typecheck` (or equivalent) passes with zero errors.
-- [ ] `pnpm build` passes.
-- [ ] `useDataGrid` returns a `gridProps` object matching the `DataGridProps<TRow>` contract (verify by type — the playground must successfully type-assign `grid.gridProps` to `DataGridProps<Row>`).
-- [ ] Transition rules encoded in `useDataGrid` setters (code review against plan 08):
+- [x] `pnpm lint` passes.
+- [x] `pnpm typecheck` (or equivalent) passes with zero errors.
+- [x] `pnpm build` passes.
+- [x] `useDataGrid` returns a `gridProps` object matching the `DataGridProps<TRow>` contract (verify by type — the playground must successfully type-assign `grid.gridProps` to `DataGridProps<Row>`).
+- [x] Transition rules encoded in `useDataGrid` setters (code review against plan 08):
   - `setSort` → resets `pageIndex` to 0 AND clears `rowSelection`.
   - `setFilters` → resets `pageIndex` to 0 AND clears `rowSelection`.
   - `setPageSize` → resets `pageIndex` to 0.
-- [ ] `useLocalStorageColumnConfig` uses a `:v1`-suffixed storage key and has read-side validation (max visible, fixed-visible enforcement, unknown-id drop) with an injectable `onWarn`.
-- [ ] Playground file imports `useDataGrid` and wires `grid.setPage`, `grid.setSort`, `grid.setFilters`, `grid.setPageSize`, and `grid.gridProps.onRowSelectionChange` (code inspection).
+- [x] `useLocalStorageColumnConfig` uses a `:v1`-suffixed storage key and has read-side validation (max visible, fixed-visible enforcement, unknown-id drop) with an injectable `onWarn`.
+- [x] Playground file imports `useDataGrid` and wires `grid.setPage`, `grid.setSort`, `grid.setFilters`, `grid.setPageSize`, and `grid.gridProps.onRowSelectionChange` (code inspection).
 
 **Manual QA (human — out of scope for Claude's stopping criteria):**
 
@@ -186,21 +186,15 @@ No parallelism. Each session strictly depends on the previous one's completion.
 
 4. **Body row + cell:** `src/components/DataGrid/body/VirtualRow.tsx`, `BodyCell.tsx`
    - `VirtualRow`: absolute positioned, `display: flex`, `width: totalTableWidth`
-   - `BodyCell`: renders `column.cell ?? DefaultCell`, passes the full `DataGridCellProps` (display + edit-seam stubs + selection + `extras`). **No registry lookup** — just `column.cell ?? DefaultCell`. Phase 2 reuses the same code path; nothing changes here.
+   - `BodyCell`: renders `column.cell ?? TextCell`, passes the full `DataGridCellProps` (display + edit-seam stubs + selection + `extras`). **No registry lookup** — just `column.cell ?? TextCell`. Phase 2 reuses the same code path; nothing changes here.
    - `BodyCell` reads `cellExtras` from `useDataGridContext()` and passes it to the cell component as the `extras` prop (Context for stable shared state, not for hot state)
    - `React.memo` on both with shallow comparators
 
-5. **Cell renderers:** `src/components/DataGrid/cells/`
-   - `DefaultCell.tsx` — fallback, renders `String(value ?? '')` with ellipsis + `title` attr + `align` styling
-   - `TextCell.tsx` — same as DefaultCell but explicitly named; ignores non-string edge cases
-   - `NumberCell.tsx` — right-aligned by default (override via `align`), locale thousands (via `extras.formatNumber` or `en-US` fallback)
-   - `SingleSelectCell.tsx` — antd `Tag`
-   - `MultiSelectCell.tsx` — "first 3 + `+N more`" with antd `Tag`
-   - `BooleanCell.tsx` — antd icon
-   - `DateCell.tsx`, `DateTimeCell.tsx` — `extras.formatDate` with ISO fallback
-   - **No RTFCell in phase 1.** (Earlier drafts had a placeholder; removed — consumers with RTF data use `TextCell` and accept the plain-text fallback.)
-   - **No registry file.** Each cell is a named export from `src/components/DataGrid/cells/index.ts`, re-exported from `src/components/DataGrid/index.ts` so consumers do `import { TextCell, NumberCell, ... } from '@/components/DataGrid'`.
-   - **Phase 1 cells handle display only.** The `DataGridCellProps` contract includes edit props (`isEditing`, `draftValue`, `commitEdit`, `cancelEdit`), but phase 1 cells ignore them — edit-mode branches are added in phase 2. Use `React.memo` with a shallow comparator on `value`, `align`, `isInRange`, `isEditing`.
+5. **Cell renderer:** `src/components/DataGrid/cells/`
+   - `TextCell.tsx` — the only built-in cell shipped in session 2. Renders `String(value ?? '')` with ellipsis + `title` attr + `align` styling. Also doubles as the fallback when a column has no `cell` set — there is no separate `DefaultCell`. Intentionally dumb: objects become `"[object Object]"`, arrays comma-join, dates become locale strings, etc. The ugliness is the signal to the developer to wire a proper cell.
+   - **No other built-in cells in session 2.** `NumberCell`, `SingleSelectCell`, `MultiSelectCell`, `BooleanCell`, `DateCell`, `DateTimeCell` are deferred — the user will build them in a later pass. Consumers needing richer rendering in the meantime write their own inline `cell` on the column def.
+   - **No registry file.** `TextCell` is a named export from `src/components/DataGrid/cells/index.ts`, re-exported from `src/components/DataGrid/index.ts` so consumers do `import { TextCell } from '@/components/DataGrid'`.
+   - **Session 2 cells handle display only.** The `DataGridCellProps` contract includes edit props (`isEditing`, `draftValue`, `commitEdit`, `cancelEdit`), but `TextCell` ignores them — edit-mode branches are added in phase 2. Use `React.memo` with a shallow comparator on `value`, `align`, `isInRange`, `isEditing`.
 
 6. **Styling:** `src/components/DataGrid/DataGrid.module.css`
    - Container, scroll container, header row, virtual row, cells
@@ -209,11 +203,12 @@ No parallelism. Each session strictly depends on the previous one's completion.
 
 7. **Playground update:**
    - Replace the naive HTML `<table>` with `<DataGrid />`
-   - Define 15 mock columns covering every built-in cell type — each column imports the cell from `@/components/DataGrid` and passes it inline via `cell: TextCell` / `cell: NumberCell` / etc.
-   - Include one column with NO `cell` set to verify the `DefaultCell` fallback is used
-   - Include one column where the accessor returns an object `{ x: 1 }` to prove the intentionally-ugly `"[object Object]"` fallback renders (documents the principle)
-   - Include one column with a custom inline cell (e.g., `cell: ({ value }) => <a href="#">{value}</a>`) to show the inline-custom pattern
-   - Set `align: 'right'` on the number column to verify the alignment hint works
+   - Define a handful of mock columns exercising the cell behavior we have:
+     - At least one column with `cell: TextCell` explicitly set
+     - One column with NO `cell` set to verify the fallback (which is `TextCell`)
+     - One column whose accessor returns an object `{ x: 1 }` to show the intentionally-ugly `"[object Object]"` coercion via `TextCell`
+     - One column with an inline custom cell (e.g., `cell: ({ value }) => <a href="#">{String(value)}</a>`) to demonstrate the inline-custom pattern
+     - One column with `align: 'right'` to verify the alignment hint works
    - Wrap the grid in the canonical flex pattern from `plan/09_component_readme.md` so sizing works
    - Keep external buttons for sanity
 
@@ -222,10 +217,10 @@ No parallelism. Each session strictly depends on the previous one's completion.
 - [ ] `pnpm lint` passes.
 - [ ] `pnpm typecheck` passes.
 - [ ] `pnpm build` passes.
-- [ ] Grep: no antd imports in `src/components/DataGrid/DataGrid.tsx` (antd only in `cells/*.tsx`).
-- [ ] Grep: no `CellRendererRegistry`, `byKey`, or `byType` symbols anywhere in `src/`.
-- [ ] All 7 built-in cells (`TextCell`, `NumberCell`, `SingleSelectCell`, `MultiSelectCell`, `BooleanCell`, `DateCell`, `DateTimeCell`) plus `DefaultCell` are exported from `src/components/DataGrid/cells/index.ts` and re-exported from `src/components/DataGrid/index.ts`.
-- [ ] `BodyCell.tsx` uses `column.cell ?? DefaultCell` (code inspection — no registry lookup).
+- [ ] Grep: no antd imports anywhere in `src/components/DataGrid/` (antd is not used in session 2 at all).
+- [ ] Grep: no `CellRendererRegistry`, `byKey`, `byType`, or `DefaultCell` symbols anywhere in `src/`.
+- [ ] `TextCell` is exported from `src/components/DataGrid/cells/index.ts` and re-exported from `src/components/DataGrid/index.ts` — and is the ONLY cell exported in session 2.
+- [ ] `BodyCell.tsx` uses `column.cell ?? TextCell` (code inspection — no registry lookup, no separate `DefaultCell`).
 - [ ] `DataGrid.tsx` calls `useReactTable` with `manualPagination: true`, `manualSorting: true`, `manualFiltering: true`, and forwards controlled state from `gridProps` for sorting, pagination, visibility, order, sizing, pinning, and row selection.
 - [ ] `DataGrid.tsx` uses `useVirtualizer` with `overscan: 10` and a fixed row height from props.
 - [ ] Virtual row positioning uses `top: Npx` (not `transform`) per plan 02 (grep `VirtualRow.tsx`).
@@ -233,29 +228,30 @@ No parallelism. Each session strictly depends on the previous one's completion.
 - [ ] `DataGrid.tsx` contains a dev-mode `useEffect` that checks `clientHeight === scrollHeight && data.length > 50` and logs to console (code inspection).
 - [ ] `DataGrid` is a `forwardRef` exposing `DataGridHandle = { scrollToRow, scrollToTop }` (type check).
 - [ ] `useDataGridContext` hook exists with a null-check and is consumed by `HeaderCell` and `BodyCell`; hot state (range, editor, drafts) is NOT on the context (code inspection).
-- [ ] Playground defines at minimum: one column per built-in cell type, one column with no `cell` set (fallback), one column whose accessor returns an object, one column with an inline-custom `cell`, and one numeric column with `align: 'right'` (code inspection).
+- [ ] Playground defines at minimum: one column with `cell: TextCell` explicitly set, one column with no `cell` set (fallback), one column whose accessor returns an object (demonstrates the `"[object Object]"` coercion), one column with an inline-custom `cell`, and one column with `align: 'right'` (code inspection).
 
 **Manual QA (human — out of scope for Claude's stopping criteria):**
 
 - Grid renders 500 rows with row virt, smooth scroll at 60fps (Chrome DevTools Performance panel).
 - Header click cycles through no-sort → asc → desc → no-sort.
-- All 7 built-in cell types render visually correctly with mock data.
-- The "no cell set" column visibly falls through to `DefaultCell`.
+- `TextCell` columns render plain strings with ellipsis overflow and title-attr tooltips on hover.
+- The "no cell set" column visibly falls through to `TextCell`.
 - The "accessor returns object" column visibly renders `"[object Object]"`.
 - The inline-custom `cell` column renders as expected.
-- `align: 'right'` visibly right-aligns the number column.
+- `align: 'right'` visibly right-aligns the target column.
 - Sticky header stays visible during vertical scroll.
 - Dev-mode warning fires when the grid is wrapped in a `height: auto` container.
 
 **Explicit non-goals in session 2:**
 
-- Pinning (no sticky cell positioning yet — pinned cells render inline in session 2, get sticky positioning in session 3)
+- Pinning (no sticky cell positioning yet — pinned cells render inline in session 2, get sticky positioning in session 3). `columnPinning` state is still wired through to TanStack Table so the plumbing exists; only the layout is deferred.
 - Column reorder drag
 - Column resize handles
 - Column visibility modal
 - Row selection checkbox column
 - Cell range selection
-- Interaction with `useLocalStorageColumnConfig` (playground passes `useState` for now)
+- Additional built-in cell components (`NumberCell`, `SingleSelectCell`, `MultiSelectCell`, `BooleanCell`, `DateCell`, `DateTimeCell`) — deferred. The user will build these later. Only `TextCell` ships in session 2.
+- **Scroll reset on page / sort / filter change.** `plan/03_row_virtualization.md` describes a rule that `bodyRef.scrollTop = 0` on these events. Deferred pending further discussion — the bidirectional coupling between the grid (scroll owner) and the hook (view state owner) needs more thought before implementing. Do NOT implement this in session 2.
 - README (still in plan/ directory, copied in session 4)
 
 ---
