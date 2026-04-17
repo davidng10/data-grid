@@ -1,5 +1,6 @@
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 import type { Cell } from "@tanstack/react-table";
+import clsx from "clsx";
 import type {
   Align,
   CellRenderer,
@@ -14,11 +15,28 @@ type BodyCellProps<TRow> = {
   cell: Cell<TRow, unknown>;
   rowIndex: number;
   rowId: string;
+  // Size / pin state are passed as explicit props rather than read off
+  // `cell.column.*` because TanStack keeps cell refs stable even when
+  // column sizing or pinning changes — if we read inside the memo'd cell,
+  // resizes silently stale the body. Passing them in makes memo invalidate
+  // on the state that actually affects layout.
+  size: number;
+  pinned: "left" | "right" | false;
+  pinLeft: number;
+  pinRight: number;
 };
 
 const NOOP = () => {};
 
-function BodyCellRender<TRow>({ cell, rowIndex, rowId }: BodyCellProps<TRow>) {
+function BodyCellRender<TRow>({
+  cell,
+  rowIndex,
+  rowId,
+  size,
+  pinned,
+  pinLeft,
+  pinRight,
+}: BodyCellProps<TRow>) {
   const { cellExtras } = useDataGridContext();
 
   const meta = cell.column.columnDef.meta as
@@ -33,7 +51,12 @@ function BodyCellRender<TRow>({ cell, rowIndex, rowId }: BodyCellProps<TRow>) {
   const align: Align = dgColumn?.align ?? "left";
   const value = cell.getValue();
   const row = cell.row.original;
-  const size = cell.column.getSize();
+  const pinStyle: CSSProperties =
+    pinned === "left"
+      ? { left: `${pinLeft}px` }
+      : pinned === "right"
+        ? { right: `${pinRight}px` }
+        : {};
 
   const cellProps: DataGridCellProps<unknown, unknown> = {
     row,
@@ -55,8 +78,17 @@ function BodyCellRender<TRow>({ cell, rowIndex, rowId }: BodyCellProps<TRow>) {
 
   return (
     <div
-      className={styles.bodyCell}
-      style={{ width: size, minWidth: size, justifyContent: alignToFlex(align) }}
+      className={clsx(
+        styles.bodyCell,
+        pinned === "left" && styles.bodyCellPinnedLeft,
+        pinned === "right" && styles.bodyCellPinnedRight,
+      )}
+      style={{
+        width: size,
+        minWidth: size,
+        justifyContent: alignToFlex(align),
+        ...pinStyle,
+      }}
       role="cell"
     >
       <Renderer {...cellProps} />

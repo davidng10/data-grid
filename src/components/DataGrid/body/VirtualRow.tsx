@@ -1,4 +1,3 @@
-import { memo } from "react";
 import type { Row } from "@tanstack/react-table";
 import { BodyCell } from "./BodyCell";
 import styles from "../DataGrid.module.css";
@@ -10,7 +9,7 @@ type VirtualRowProps<TRow> = {
   totalWidth: number;
 };
 
-function VirtualRowRender<TRow>({
+export function VirtualRow<TRow>({
   row,
   top,
   height,
@@ -24,16 +23,23 @@ function VirtualRowRender<TRow>({
       role="row"
       data-row-id={row.id}
     >
-      {cells.map((cell) => (
-        <BodyCell
-          key={cell.id}
-          cell={cell}
-          rowIndex={row.index}
-          rowId={row.id}
-        />
-      ))}
+      {cells.map((cell) => {
+        const pinned = cell.column.getIsPinned();
+        return (
+          <BodyCell
+            key={cell.id}
+            cell={cell}
+            rowIndex={row.index}
+            rowId={row.id}
+            size={cell.column.getSize()}
+            pinned={pinned}
+            pinLeft={pinned === "left" ? cell.column.getStart("left") : 0}
+            pinRight={pinned === "right" ? cell.column.getAfter("right") : 0}
+          />
+        );
+      })}
     </div>
   );
 }
 
-export const VirtualRow = memo(VirtualRowRender) as typeof VirtualRowRender;
+

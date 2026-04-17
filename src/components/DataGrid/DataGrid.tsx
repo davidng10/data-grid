@@ -140,6 +140,8 @@ function DataGridInner<TRow>(
     manualPagination: true,
     manualSorting: true,
     manualFiltering: true,
+    columnResizeMode: "onChange",
+    enableColumnResizing: allowResize,
     pageCount,
   });
 

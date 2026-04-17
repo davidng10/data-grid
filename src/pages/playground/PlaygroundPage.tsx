@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { Button, Checkbox, Modal, Tooltip, message } from "antd";
 import { useDataGrid } from "../../hooks/useDataGrid";
 import { useLocalStorageColumnConfig } from "../../hooks/useLocalStorageColumnConfig";
 import {
@@ -17,7 +18,11 @@ type Row = {
   age: number;
   status: "active" | "inactive";
   email: string;
+  city: string;
+  department: string;
+  joined: string;
   meta: { x: number; tag: string };
+  actions: string;
 };
 
 type Filters = {
@@ -25,13 +30,20 @@ type Filters = {
   minAge?: number;
 };
 
+const CITIES = ["Singapore", "Tokyo", "Berlin", "New York", "London"];
+const DEPARTMENTS = ["Eng", "Sales", "Ops", "HR", "Finance"];
+
 const MOCK_ROWS: Row[] = Array.from({ length: 500 }, (_, i) => ({
   id: `row-${String(i).padStart(3, "0")}`,
   name: `Person ${String(i).padStart(3, "0")}`,
   age: 20 + (i % 50),
   status: i % 3 === 0 ? "inactive" : "active",
   email: `person${i}@example.com`,
+  city: CITIES[i % CITIES.length],
+  department: DEPARTMENTS[i % DEPARTMENTS.length],
+  joined: new Date(2020, i % 12, (i % 27) + 1).toISOString().slice(0, 10),
   meta: { x: i, tag: `tag-${i % 7}` },
+  actions: "…",
 }));
 
 function applyFilters(rows: Row[], filters: Filters): Row[] {
@@ -71,8 +83,6 @@ function applyPagination(
   return rows.slice(start, start + pageSize);
 }
 
-// Inline custom cell: renders the email as a mailto link. Demonstrates the
-// "component reference lives on the column def" pattern.
 const EmailLinkCell: CellRenderer<Row, string> = ({ value }) => {
   const text = value ?? "";
   return (
@@ -87,23 +97,48 @@ const EmailLinkCell: CellRenderer<Row, string> = ({ value }) => {
   );
 };
 
+const ActionsCell: CellRenderer<Row, string> = ({ rowId }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      message.info(`Row action on ${rowId}`);
+    }}
+    style={{
+      padding: "2px 8px",
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 3,
+      cursor: "pointer",
+      fontSize: 12,
+    }}
+  >
+    Open
+  </button>
+);
+
 const COLUMNS: DataGridColumnDef<Row>[] = [
-  // No `cell` set → falls back to TextCell.
+  // Fixed-pin-left + fixed-visible + fixed-position — the classic "identifier" column.
   {
     id: "id",
     header: "ID",
     accessor: (r) => r.id,
     width: 120,
+    pin: "left",
+    fixedPin: true,
+    fixedVisible: true,
+    fixedPosition: true,
   },
-  // Explicit TextCell.
+  // Fixed-position, but user-movable pin + visibility.
   {
     id: "name",
     header: "Name",
     accessor: (r) => r.name,
     cell: TextCell,
     width: 180,
+    fixedPosition: true,
   },
-  // TextCell + align: 'right' to verify the alignment hint.
   {
     id: "age",
     header: "Age",
@@ -112,7 +147,6 @@ const COLUMNS: DataGridColumnDef<Row>[] = [
     align: "right",
     width: 90,
   },
-  // Explicit TextCell (single-select style value, rendered as plain string).
   {
     id: "status",
     header: "Status",
@@ -120,7 +154,6 @@ const COLUMNS: DataGridColumnDef<Row>[] = [
     cell: TextCell,
     width: 120,
   },
-  // Inline custom cell (link). Not sortable — the BE wouldn't support it either.
   {
     id: "email",
     header: "Email",
@@ -129,8 +162,27 @@ const COLUMNS: DataGridColumnDef<Row>[] = [
     width: 260,
     meta: { sortable: false },
   },
-  // Accessor returns an object → TextCell fallback renders "[object Object]".
-  // Documented as the "set a proper cell" smell.
+  {
+    id: "city",
+    header: "City",
+    accessor: (r) => r.city,
+    cell: TextCell,
+    width: 140,
+  },
+  {
+    id: "department",
+    header: "Department",
+    accessor: (r) => r.department,
+    cell: TextCell,
+    width: 140,
+  },
+  {
+    id: "joined",
+    header: "Joined",
+    accessor: (r) => r.joined,
+    cell: TextCell,
+    width: 130,
+  },
   {
     id: "meta",
     header: "Meta (object → ugly fallback)",
@@ -138,7 +190,31 @@ const COLUMNS: DataGridColumnDef<Row>[] = [
     width: 260,
     meta: { sortable: false },
   },
+  // Fixed-pin-right — e.g., persistent actions column.
+  {
+    id: "actions",
+    header: "Actions",
+    accessor: (r) => r.actions,
+    cell: ActionsCell as CellRenderer<Row, unknown>,
+    width: 120,
+    pin: "right",
+    fixedPin: true,
+    fixedVisible: true,
+    fixedPosition: true,
+    meta: { sortable: false },
+  },
 ];
+
+const FIXED_PIN_LEFT = COLUMNS.filter(
+  (c) => c.fixedPin && c.pin === "left",
+).map((c) => c.id);
+const FIXED_PIN_RIGHT = COLUMNS.filter(
+  (c) => c.fixedPin && c.pin === "right",
+).map((c) => c.id);
+const FIXED_VISIBLE = COLUMNS.filter((c) => c.fixedVisible).map((c) => c.id);
+const FIXED_POSITION = COLUMNS.filter((c) => c.fixedPosition).map((c) => c.id);
+
+const MAX_VISIBLE = 40;
 
 export const PlaygroundPage = () => {
   const [view, setView] = useState<DataGridView<Filters>>({
@@ -149,11 +225,32 @@ export const PlaygroundPage = () => {
   });
 
   const [columnConfig, setColumnConfig] = useLocalStorageColumnConfig(
-    "playground-v1",
+    "playground-v2",
     {
-      onWarn: (msg) => console.warn("[playground]", msg),
+      maxVisibleColumns: MAX_VISIBLE,
+      fixedVisibleColumnIds: FIXED_VISIBLE,
+      fixedPins: { left: FIXED_PIN_LEFT, right: FIXED_PIN_RIGHT },
+      onWarn: (msg) => message.warning(msg),
     },
   );
+
+  // The persistence helper returns EMPTY_STATE when localStorage has no
+  // entry, which misses fixed-pin enforcement on first load. Compute an
+  // effective config that seeds defaults when stored order is empty; the
+  // stored state receives the seeded value on the first user-driven change.
+  const effectiveColumnConfig = useMemo(() => {
+    if (columnConfig.columnOrder.length > 0) return columnConfig;
+    return {
+      columnVisibility: Object.fromEntries(COLUMNS.map((c) => [c.id, true])),
+      columnOrder: COLUMNS.map((c) => c.id),
+      columnSizing: columnConfig.columnSizing,
+      columnPinning: {
+        left: FIXED_PIN_LEFT,
+        right: FIXED_PIN_RIGHT,
+      },
+      schemaVersion: 1 as const,
+    };
+  }, [columnConfig]);
 
   const filtered = useMemo(
     () => applyFilters(MOCK_ROWS, view.filters),
@@ -174,12 +271,20 @@ export const PlaygroundPage = () => {
   const grid = useDataGrid<Row, Filters>({
     view,
     onViewChange: setView,
-    columnConfig,
+    columnConfig: effectiveColumnConfig,
     onColumnConfigChange: setColumnConfig,
     rowCount: totalCount,
+    maxVisibleColumns: MAX_VISIBLE,
+    fixedVisibleColumnIds: FIXED_VISIBLE,
+    fixedPositionColumnIds: FIXED_POSITION,
+    fixedPinnedLeft: FIXED_PIN_LEFT,
+    fixedPinnedRight: FIXED_PIN_RIGHT,
+    onWarn: (msg) => message.warning(msg),
   });
 
   const gridRef = useRef<DataGridHandle | null>(null);
+
+  const [columnsModalOpen, setColumnsModalOpen] = useState(false);
 
   return (
     <div
@@ -192,11 +297,11 @@ export const PlaygroundPage = () => {
     >
       <div style={{ flexShrink: 0, padding: "16px 16px 8px" }}>
         <h1 style={{ margin: 0, fontSize: 20 }}>
-          DataGrid playground — session 2
+          DataGrid playground — session 3
         </h1>
         <p style={{ color: "#666", margin: "4px 0 12px" }}>
-          Virtualized &lt;DataGrid /&gt; with sticky header, single-column
-          sort, and TextCell-as-fallback.
+          Pinning, resize, reorder (drag handle), column visibility modal,
+          fixed-flag demos.
         </p>
 
         <div
@@ -207,25 +312,25 @@ export const PlaygroundPage = () => {
             gap: 8,
           }}
         >
-          <button
-            type="button"
+          <Button
+            size="small"
             disabled={view.pageIndex === 0}
             onClick={() => grid.setPage(Math.max(0, view.pageIndex - 1))}
           >
             Prev
-          </button>
+          </Button>
           <span>
             Page {view.pageIndex + 1} / {totalPages} &middot; {totalCount} rows
           </span>
-          <button
-            type="button"
+          <Button
+            size="small"
             disabled={view.pageIndex >= totalPages - 1}
             onClick={() =>
               grid.setPage(Math.min(totalPages - 1, view.pageIndex + 1))
             }
           >
             Next
-          </button>
+          </Button>
 
           <label>
             {" "}
@@ -243,39 +348,43 @@ export const PlaygroundPage = () => {
 
           <span style={{ width: 12 }} />
 
-          <button
-            type="button"
+          <Button
+            size="small"
             onClick={() => grid.setFilters({ status: "active" })}
           >
             Filter: active
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            size="small"
             onClick={() => grid.setFilters({ status: "inactive" })}
           >
             Filter: inactive
-          </button>
-          <button
-            type="button"
-            onClick={() => grid.setFilters({ minAge: 40 })}
-          >
+          </Button>
+          <Button size="small" onClick={() => grid.setFilters({ minAge: 40 })}>
             Filter: age ≥ 40
-          </button>
-          <button type="button" onClick={() => grid.setFilters({})}>
+          </Button>
+          <Button size="small" onClick={() => grid.setFilters({})}>
             Clear filters
-          </button>
+          </Button>
 
           <span style={{ width: 12 }} />
 
-          <button type="button" onClick={() => grid.setSort([])}>
+          <Button size="small" onClick={() => grid.setSort([])}>
             Clear sort
-          </button>
-          <button
-            type="button"
-            onClick={() => gridRef.current?.scrollToTop()}
-          >
+          </Button>
+          <Button size="small" onClick={() => gridRef.current?.scrollToTop()}>
             Scroll to top
-          </button>
+          </Button>
+
+          <span style={{ width: 12 }} />
+
+          <Button
+            size="small"
+            type="primary"
+            onClick={() => setColumnsModalOpen(true)}
+          >
+            Columns…
+          </Button>
         </div>
       </div>
 
@@ -297,9 +406,21 @@ export const PlaygroundPage = () => {
         />
       </div>
 
+      <ColumnVisibilityModal
+        open={columnsModalOpen}
+        onClose={() => setColumnsModalOpen(false)}
+        columns={COLUMNS}
+        visibility={effectiveColumnConfig.columnVisibility}
+        onApply={(next) => {
+          grid.gridProps.onColumnVisibilityChange?.(next);
+          setColumnsModalOpen(false);
+        }}
+      />
+
       <aside
         style={{
           position: "fixed",
+          zIndex: 99999,
           right: 16,
           bottom: 16,
           background: "#111",
@@ -320,3 +441,93 @@ export const PlaygroundPage = () => {
     </div>
   );
 };
+
+type ColumnVisibilityModalProps = {
+  open: boolean;
+  onClose: () => void;
+  columns: DataGridColumnDef<Row>[];
+  visibility: Record<string, boolean>;
+  onApply: (next: Record<string, boolean>) => void;
+};
+
+function ColumnVisibilityModal({
+  open,
+  onClose,
+  columns,
+  visibility,
+  onApply,
+}: ColumnVisibilityModalProps) {
+  const [pending, setPending] = useState<Record<string, boolean>>(visibility);
+  const [lastOpen, setLastOpen] = useState(open);
+
+  // Derived-state pattern — on the transition to open, reseed pending from
+  // the current grid visibility. See React docs, "Adjusting some state when
+  // a prop changes" — cheaper and simpler than useEffect + setState.
+  if (open !== lastOpen) {
+    setLastOpen(open);
+    if (open) setPending(visibility);
+  }
+
+  const visibleCount = useMemo(
+    () => Object.values(pending).filter(Boolean).length,
+    [pending],
+  );
+
+  const toggle = (id: string, next: boolean) => {
+    const col = columns.find((c) => c.id === id);
+    if (col?.fixedVisible) return;
+    if (next && visibleCount >= MAX_VISIBLE && !pending[id]) {
+      message.warning(`Maximum ${MAX_VISIBLE} columns. Uncheck one first.`);
+      return;
+    }
+    setPending((p) => ({ ...p, [id]: next }));
+  };
+
+  return (
+    <Modal
+      title="Columns"
+      open={open}
+      onCancel={onClose}
+      onOk={() => onApply(pending)}
+      okText="Apply"
+      cancelText="Cancel"
+      width={420}
+    >
+      <div
+        style={{
+          maxHeight: 400,
+          overflow: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        {columns.map((c) => {
+          const checked = c.fixedVisible ? true : !!pending[c.id];
+          const disabled = !!c.fixedVisible;
+          const checkbox = (
+            <Checkbox
+              checked={checked}
+              disabled={disabled}
+              onChange={(e) => toggle(c.id, e.target.checked)}
+            >
+              {typeof c.header === "string" ? c.header : c.id}
+            </Checkbox>
+          );
+          return (
+            <div key={c.id}>
+              {disabled ? (
+                <Tooltip title="Always shown">{checkbox}</Tooltip>
+              ) : (
+                checkbox
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 12, color: "#666", fontSize: 12 }}>
+        {visibleCount} / {MAX_VISIBLE} columns selected
+      </div>
+    </Modal>
+  );
+}
