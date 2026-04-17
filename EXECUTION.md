@@ -258,7 +258,7 @@ No parallelism. Each session strictly depends on the previous one's completion.
 
 ## Session 3 — Column features
 
-**Status:** blocked on session 2
+**Status:** complete
 
 **Read list:**
 
@@ -328,18 +328,18 @@ No parallelism. Each session strictly depends on the previous one's completion.
 
 **Stopping criteria (automated — Claude verifies; no browser / no runtime rendering):**
 
-- [ ] `pnpm lint` passes.
-- [ ] `pnpm typecheck` passes.
-- [ ] `pnpm build` passes.
-- [ ] `DropdownMenu.tsx`, `HeaderMenu.tsx`, `ResizeHandle.tsx`, `ColumnReorderContext.tsx` exist and compile.
-- [ ] Grep: no antd imports in `DropdownMenu.tsx`.
-- [ ] `useReactTable` is configured with `columnResizeMode: 'onChange'` (code inspection).
-- [ ] `ResizeHandle` wires `header.getResizeHandler()` from TanStack Table; min/max clamping is honored in the `DataGridColumnDef` → TanStack `ColumnDef` adapter (code inspection).
-- [ ] `HeaderMenu` items for Pin Left / Pin Right / Unpin / Move Left / Move Right / Hide are conditionally disabled based on `column.fixedPin`, `column.fixedPosition`, and `column.fixedVisible`, with `disabledReason` strings attached (code inspection).
-- [ ] `ColumnReorderContext` uses three `SortableContext` instances (one per zone), marks `fixedPosition` columns `disabled`, and uses collision detection that skips fixed-position rects (code inspection).
-- [ ] Pinning layout computes `totalTableWidth`, `leftPinnedWidths`, `rightPinnedWidths`, and per-column `leftOffset` / `rightOffset`, applied via `position: sticky; left|right: Npx` with solid backgrounds and the z-index ladder from the plan (code inspection).
-- [ ] Column visibility modal in the playground calls through `gridProps.onColumnVisibilityChange`; max-40 enforcement is present either in the modal's Apply handler or via `useDataGrid`'s `maxVisibleColumns` warn callback (code inspection).
-- [ ] Playground wires `useLocalStorageColumnConfig` to the grid's column config state and declares at least one column each with `fixedPin: 'left'`, `fixedPin: 'right'`, `fixedVisible: true`, and `fixedPosition: true` (code inspection).
+- [x] `pnpm lint` passes.
+- [x] `pnpm typecheck` passes.
+- [x] `pnpm build` passes.
+- [x] `DropdownMenu.tsx`, `HeaderMenu.tsx`, `ResizeHandle.tsx`, `ColumnReorderContext.tsx` exist and compile.
+- [x] Grep: no antd imports in `DropdownMenu.tsx`.
+- [x] `useReactTable` is configured with `columnResizeMode: 'onChange'` (code inspection).
+- [x] `ResizeHandle` wires `header.getResizeHandler()` from TanStack Table; min/max clamping is honored in the `DataGridColumnDef` → TanStack `ColumnDef` adapter (code inspection).
+- [x] `HeaderMenu` items for Pin Left / Pin Right / Unpin / Move Left / Move Right / Hide are conditionally disabled based on `column.fixedPin`, `column.fixedPosition`, and `column.fixedVisible`, with `disabledReason` strings attached (code inspection).
+- [x] `ColumnReorderContext` uses three `SortableContext` instances (one per zone), marks `fixedPosition` columns `disabled`, and uses collision detection that skips fixed-position rects (code inspection).
+- [x] Pinning layout computes `totalTableWidth`, `leftPinnedWidths`, `rightPinnedWidths`, and per-column `leftOffset` / `rightOffset`, applied via `position: sticky; left|right: Npx` with solid backgrounds and the z-index ladder from the plan (code inspection).
+- [x] Column visibility modal in the playground calls through `gridProps.onColumnVisibilityChange`; max-40 enforcement is present either in the modal's Apply handler or via `useDataGrid`'s `maxVisibleColumns` warn callback (code inspection).
+- [x] Playground wires `useLocalStorageColumnConfig` to the grid's column config state and declares at least one column each with `fixedPin: 'left'`, `fixedPin: 'right'`, `fixedVisible: true`, and `fixedPosition: true` (code inspection).
 
 **Manual QA (human — out of scope for Claude's stopping criteria):**
 
