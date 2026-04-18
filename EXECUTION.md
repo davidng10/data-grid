@@ -356,13 +356,14 @@ No parallelism. Each session strictly depends on the previous one's completion.
 
 ## Session 4 — Selection + polish + README
 
-**Status:** blocked on session 3
+**Status:** complete
 
 **Read list:**
 
 - `PLAN.md`
 - `plan/05_selection.md`
 - `plan/09_component_readme.md`
+- `plan/01_architecture.md` — specifically the "Pattern — reading TanStack state in memoed leaves" section and the session-3 retro note at the end of "What this means for session implementers"
 - Skim: `plan/02_table_component.md` (loading/empty states)
 
 **Also at session start:**
@@ -370,75 +371,115 @@ No parallelism. Each session strictly depends on the previous one's completion.
 - `git log --oneline -20`
 - `ls src/components/DataGrid/` to re-hydrate file layout
 - Read `src/components/DataGrid/DataGrid.tsx` — selection wires into the same layout
+- Read `src/components/DataGrid/body/VirtualRow.tsx` + `body/BodyCell.tsx` — these are the canonical "fix shape" examples for the pattern in plan/01; selection state must follow the same shape
+- Read `src/components/DataGrid/header/HeaderCell.tsx` + `dnd/SortableHeaderCell.tsx` — header memo cleanup is in scope this session (see build item 1)
+
+**Decisions agreed before this session started (deviations from plan/05's earlier draft):**
+
+- **Copy API:** no built-in default behavior. Grid fires `onRangeCopy(range, ctx)` only if the prop is provided; consumer returns the string to write to the clipboard (or calls the exported `defaultRangeToTSV` helper for the canned format). Plan/05 has the full rationale.
+- **Focused cell on page change:** clears to `null`. When `null`, grid does NOT intercept arrow keys — they flow to the browser as native scroll. Cell traversal only activates after the user clicks (or starts a drag) inside the grid. Ctrl+A is the only key that works without a focused cell.
+- **Header memo cleanup:** session-3 retro flagged that `HeaderCell` reads live `getSize()` / `getIsPinned()` / `getStart()` / `getAfter()` / `getIsSorted()` inside a memoed leaf, currently masked by `SortableHeaderCell` rebuilding the `drag` prop object every render. Both halves are addressed in build item 1 below — together, because A masks B and the cleanup would re-introduce B as a real bug if shipped alone.
 
 **Build list:**
 
-1. **Row selection:**
+1. **Header memo cleanup (session-3 retro fix):**
+   - Lift `header.getSize()`, `header.column.getIsPinned()`, `header.column.getStart('left')`, `header.column.getAfter('right')`, `header.column.getIsSorted()` reads out of `HeaderCell` and into `HeaderRow` (and `ColumnReorderContext` when reorder is on)
+   - `HeaderCell` becomes a pure leaf that reads `size`, `pinned`, `pinLeft`, `pinRight`, `sortDir` from explicit props
+   - Replace the `drag: HeaderCellDragProps` wrapper object with flat props (`dragSetNodeRef`, `dragTransform`, `dragTransition`, `dragListeners`, `dragAttributes`, `dragIsDragging`, `dragDisabled`) so `React.memo`'s shallow compare can short-circuit non-dragging headers
+   - Inside `HeaderCell`, never call `header.column.get*()` again
+
+2. **Row selection:**
    - Inject a pinned-left checkbox column when `allowRowSelection: true`
      - id `__select__`, width 44, `fixedPin: 'left'`, `fixedVisible: true`, `fixedPosition: true`
    - Header checkbox with indeterminate state (all / none / some of current page selected)
    - Row checkbox cell (`CheckboxCell.tsx`)
    - Shift-click on a row checkbox selects range from last-clicked
    - Transition rules already in `useDataGrid`: preserved on page change, cleared on filter change — verify
+   - **Pattern compliance:** `row.getIsSelected()` is read in `VirtualRow` (un-memoed) and passed to `BodyCell` / `CheckboxCell` as an explicit `isSelected` prop. Do NOT call `row.getIsSelected()` inside the memoed `BodyCell`.
 
-2. **Cell range selection:**
+3. **Cell range selection:**
    - Mouse: mousedown (start), mouseenter-while-dragging (extend), mouseup (end), click-outside (clear)
    - Shift-mousedown extends from existing anchor
    - Right-click: if inside range, keep range and fire `onRangeContextMenu(e, range)`; if outside, collapse to 1×1 and fire
-   - Keyboard: arrow (move focus + collapse), shift+arrow (extend from anchor), Esc (clear), Ctrl+A (select all visible cells), Ctrl+C (fire `onRangeCopy` + write TSV to clipboard)
-   - Default TSV serialization: tabs between cells, newlines between rows, multi-select joined with a comma and a space, null/undefined as empty, dates as ISO
+   - Keyboard (only when `focusedCell !== null`, except Ctrl+A): arrow (move focus + collapse), shift+arrow (extend from anchor), Esc (clear range, focus stays), Ctrl+A (select all visible cells), Ctrl+C (fire `onRangeCopy` if provided)
    - **State management for range:** plain prop drilling + `React.memo` on cells. Do NOT reach for a `useSyncExternalStore` / Zustand-style store unless you've profiled and range-drag is the bottleneck. See `plan/01_architecture.md` State management section for the escape hatch if profiling demands it. Phase 1 ships with drilling.
    - Clear on page/sort/filter change (already in hook) and on column visibility change that removes a column inside the range
    - **Index-based math, not DOM-based.** `isInRange(rowIndex, columnId)` checks visual column position via `columnOrder` + pinning state
+   - **Pattern compliance:** `isInRange(row.index, columnId)`, `isRangeAnchor`, `isRangeFocus` are computed in `VirtualRow` (un-memoed) and passed to `BodyCell` as explicit props. Do NOT compute / read range membership inside the memoed `BodyCell`.
 
-3. **Polish:**
+4. **Auto-scroll while dragging a range:**
+   - During an active range drag, if the cursor sits in a 24px gutter inside the body's viewport edge, `requestAnimationFrame` loop scrolls 8px/frame in that direction
+   - Cancel the next frame on `mouseup` / drag end
+   - Pinned columns do not participate in horizontal auto-scroll
+   - No keyboard auto-scroll (use `scrollIntoView` on the focused cell after Shift+Arrow if needed)
+
+5. **Copy API + helper:**
+   - Export `defaultRangeToTSV(range, getCellValue, columns) -> string` from `@/components/DataGrid`
+     - Tabs between cells, newlines between rows
+     - Iterates the visible-column slice the range covers in visual order
+     - `null`/`undefined` → empty; `Array` → joined with `, `; `Date` → `.toISOString()`; plain object → `JSON.stringify`; else → `String(value)`
+     - Replace inner tabs / newlines / CRs in any value with a single space
+   - Ctrl+C inside the grid: if `onRangeCopy` provided, call `onRangeCopy(range, { getCellValue, columns })`; if return value is a string, `navigator.clipboard.writeText(value)`; otherwise do nothing. If `onRangeCopy` is not provided, Ctrl+C inside the grid is a no-op.
+
+6. **Polish:**
    - Loading skeleton: 3 placeholder rows with a shimmer keyframe when `isLoading && data.length === 0`
    - Top-border "refetch" bar when `isLoading && data.length > 0` (2px, animated)
    - Empty state: renders `emptyState` prop, default "No results" centered in the body
    - Sticky scroll shadows: detect `scrollLeft > 0` → class on pinned-left edge showing a right-edge box-shadow; detect `scrollLeft < scrollWidth - clientWidth` → class on pinned-right edge showing left-edge box-shadow. Use a single scroll listener, toggle classes.
 
-4. **README:** copy `plan/09_component_readme.md` content (everything under the first `---`) to `src/components/DataGrid/README.md`.
+7. **README:** copy `plan/09_component_readme.md` content (everything under the first `---`) to `src/components/DataGrid/README.md`.
    - Add a top callout: **"Phase 1 — inline editing is NOT implemented. The `allowInlineEdit` flag, `activeEditor` state, and edit-mode cell rendering are stubbed but non-functional. Any references to phase 2 below are forward-looking."**
    - Gate each phase 2 reference with an inline `(phase 2 — not yet implemented)` tag. Grep `plan/09_component_readme.md` for `phase 2` and `activeEditor` to find them.
-   - Verify the Quick Start snippet compiles against the actual types.
+   - Reconcile the Quick Start snippet against the actual `useDataGrid` / `DataGridProps` exported types so it compiles. Update the snippet (not the types) when there's a mismatch.
+   - Update the "Cell rendering" / FAQ sections to reflect the no-default-TSV copy API and the `defaultRangeToTSV` helper.
 
-5. **Playground final updates:**
+8. **Playground final updates:**
    - Demo row selection (header checkbox, individual row checkboxes)
    - Demo cell range selection (drag, shift+arrow, Esc)
    - Wire `onRangeContextMenu` to a native `alert` showing the cell count (stand-in for a real context menu)
-   - Wire `onRangeCopy` to log the TSV to console
+   - Wire `onRangeCopy` to call `defaultRangeToTSV` and `console.log` the result (and return the TSV so the grid writes it to the clipboard)
    - Add a "Show selection" button that displays current `grid.selection.rowIds` + range info
 
 **Stopping criteria (automated — Claude verifies; no browser / no runtime rendering):**
 
-- [ ] `pnpm lint` passes.
-- [ ] `pnpm typecheck` passes.
-- [ ] `pnpm build` passes.
-- [ ] `CheckboxCell.tsx` exists; the grid injects a synthetic `__select__` column (id `__select__`, width 44, `fixedPin: 'left'`, `fixedVisible: true`, `fixedPosition: true`) when `allowRowSelection: true` (code inspection).
-- [ ] Header checkbox computes an indeterminate state from current-page row selection (code inspection).
-- [ ] Shift-click range logic on row checkboxes is present (last-clicked anchor + range extension).
-- [ ] Cell range mouse handlers exist: mousedown (start), mouseenter-while-dragging (extend), mouseup (end), click-outside (clear), shift-mousedown (extend from anchor) (code inspection).
-- [ ] Cell range right-click handler: if inside range, retain range and fire `onRangeContextMenu(e, range)`; if outside, collapse to 1×1 and fire (code inspection).
-- [ ] Cell range keyboard handlers: arrow (move + collapse), shift+arrow (extend), Esc (clear), Ctrl+A (select all visible), Ctrl+C (fire `onRangeCopy` + write TSV) (code inspection).
-- [ ] TSV serializer produces: tabs between cells, newlines between rows, multi-select joined with comma+space, null/undefined as empty string, dates as ISO.
-- [ ] `isInRange(rowIndex, columnId)` uses index-based math against `columnOrder` + pinning state, not DOM queries (code inspection).
-- [ ] Range state is cleared on page / sort / filter change (hook) and on visibility changes that remove a column inside the active range (component).
-- [ ] `DataGrid.tsx` renders: a loading skeleton branch (`isLoading && data.length === 0`), a refetch bar branch (`isLoading && data.length > 0`), and an empty-state branch using the `emptyState` prop with a default.
-- [ ] Sticky scroll shadow: a single scroll listener toggles CSS classes based on `scrollLeft` vs `scrollWidth - clientWidth` (code inspection).
-- [ ] `src/components/DataGrid/README.md` exists; starts with a phase 1 callout stating inline editing is stubbed; every phase-2 reference is tagged `(phase 2 — not yet implemented)`.
-- [ ] The README Quick Start snippet type-checks against the actual `DataGridProps` types (attempt to compile in-playground or via a throwaway `.tsx` snippet).
-- [ ] Playground wires `onRangeContextMenu`, `onRangeCopy`, and a "Show selection" button (code inspection).
+- [x] `pnpm lint` passes.
+- [x] `pnpm typecheck` passes.
+- [x] `pnpm build` passes.
+- [x] `HeaderCell.tsx` does not call `header.column.get*()` or `header.getSize()` anywhere in its render body (grep). All such reads happen in `HeaderRow.tsx` / `ColumnReorderContext.tsx` (code inspection).
+- [x] `SortableHeaderCell.tsx` no longer constructs a single `drag` wrapper object passed as one prop — drag-related values are passed as flat props (code inspection).
+- [x] `CheckboxCell.tsx` exists; the grid injects a synthetic `__select__` column (id `__select__`, width 44, `fixedPin: 'left'`, `fixedVisible: true`, `fixedPosition: true`) when `allowRowSelection: true` (code inspection).
+- [x] Header checkbox computes an indeterminate state from current-page row selection (code inspection).
+- [x] Shift-click range logic on row checkboxes is present (last-clicked anchor + range extension).
+- [x] `BodyCell.tsx` does not call `row.getIsSelected()` or any range-membership helper internally — it reads `isSelected`, `isInRange`, `isRangeAnchor`, `isRangeFocus` from explicit props supplied by `VirtualRow` (code inspection).
+- [x] Cell range mouse handlers exist: mousedown (start), mouseenter-while-dragging (extend), mouseup (end), click-outside (clear), shift-mousedown (extend from anchor) (code inspection).
+- [x] Cell range right-click handler: if inside range, retain range and fire `onRangeContextMenu(e, range)`; if outside, collapse to 1×1 and fire (code inspection).
+- [x] Cell range keyboard handlers (gated on `focusedCell !== null` except Ctrl+A): arrow (move + collapse), shift+arrow (extend), Esc (clear), Ctrl+A (select all visible), Ctrl+C (fire `onRangeCopy` if provided) (code inspection).
+- [x] When `focusedCell === null`, arrow keys are not `preventDefault`'d by the grid (code inspection — handler returns early without `preventDefault`).
+- [x] Focused cell clears on page change / sort change / filter change / page-size change (code inspection).
+- [x] Auto-scroll loop during a range drag exists (`requestAnimationFrame` driven, cancelled on mouseup) (code inspection).
+- [x] `defaultRangeToTSV` is exported from `src/components/DataGrid/index.ts`. Behavior: tabs between cells, newlines between rows, arrays joined `, `, dates ISO, null/undefined empty, plain objects `JSON.stringify`, inner tabs/newlines replaced with spaces (code inspection of the function body).
+- [x] Grid does NOT call `navigator.clipboard.writeText` unconditionally on Ctrl+C; it only writes when `onRangeCopy` is provided AND returns a string (code inspection).
+- [x] `isInRange(rowIndex, columnId)` uses index-based math against `columnOrder` + pinning state, not DOM queries (code inspection).
+- [x] Range state is cleared on page / sort / filter change (hook) and on visibility changes that remove a column inside the active range (component).
+- [x] `DataGrid.tsx` renders: a loading skeleton branch (`isLoading && data.length === 0`), a refetch bar branch (`isLoading && data.length > 0`), and an empty-state branch using the `emptyState` prop with a default.
+- [x] Sticky scroll shadow: a single scroll listener toggles CSS classes based on `scrollLeft` vs `scrollWidth - clientWidth` (code inspection).
+- [x] `src/components/DataGrid/README.md` exists; starts with a phase 1 callout stating inline editing is stubbed; every phase-2 reference is tagged `(phase 2 — not yet implemented)`; Quick Start matches the real exported types.
+- [x] README documents `defaultRangeToTSV` and the no-default-clipboard semantics of `onRangeCopy`.
+- [x] Playground wires `onRangeContextMenu`, `onRangeCopy` (using `defaultRangeToTSV`), and a "Show selection" button (code inspection).
 
 **Manual QA (human — out of scope for Claude's stopping criteria):**
 
 - Pinned-left checkbox column appears when `allowRowSelection: true`.
 - Header checkbox indeterminate state works visually.
 - Shift-click on row checkboxes selects a range.
-- Mouse drag creates a cell range.
-- Arrow keys move focus; shift+arrow extends; Esc clears.
-- Ctrl+C writes TSV to the clipboard (paste into a text editor to confirm).
+- Mouse drag creates a cell range; auto-scroll kicks in when cursor sits near a viewport edge during the drag.
+- Click on a cell, then arrow keys move focus; shift+arrow extends; Esc clears the range (focus stays).
+- After page navigation, arrow keys produce native browser scroll (no cell focus). Click any cell to re-engage cell traversal.
+- Ctrl+A selects all visible cells regardless of prior focus state.
+- Ctrl+C with `onRangeCopy` provided writes the consumer's returned string to the clipboard (paste into a text editor to confirm). Without `onRangeCopy`, Ctrl+C inside the grid does nothing.
 - Right-click on a selected range fires `onRangeContextMenu` with the correct range.
 - Right-click outside the range collapses to 1×1 and fires.
+- Header column resize visibly updates width even when reorder is disabled (sanity check that the memo cleanup didn't regress).
 - Loading skeleton visible on initial load.
 - Refetch bar visible when navigating pages.
 - Empty state visible with `data.length === 0`.

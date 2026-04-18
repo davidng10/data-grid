@@ -92,7 +92,7 @@ Re-rendering every cell on every range-mousemove event is wasteful. Two options:
 
 | Event | Effect |
 |---|---|
-| `mousedown` on cell body | Set anchor=focus=that cell. Start a "dragging" flag. |
+| `mousedown` on cell body | Set anchor=focus=that cell. Start a "dragging" flag. Set focused cell. |
 | `mouseenter` on cell (while dragging) | Update focus. |
 | `mouseup` anywhere | End dragging. Range persists. |
 | `click` outside grid body | Clear range. |
@@ -102,19 +102,50 @@ Re-rendering every cell on every range-mousemove event is wasteful. Two options:
 
 **Do not** use native browser selection for this. The grid should call `e.preventDefault()` on mousedown inside cells and handle selection manually. Native selection fights with sticky columns and virtualization.
 
+### Auto-scroll while dragging
+
+If the mouse leaves the body's vertical or horizontal viewport while dragging a range, the grid auto-scrolls the body container so the user can extend the range past visible bounds.
+
+- **Phase 1 scope:** basic constant-rate auto-scroll (8 px/frame via `requestAnimationFrame`) when the cursor sits in a 24px gutter inside each viewport edge during a drag. No acceleration curve — tune later from real use.
+- The auto-scroll loop is gated on the dragging flag; releasing the mouse cancels the next frame.
+- Pinned columns do not participate in horizontal auto-scroll (they're always visible by definition; only the middle zone scrolls horizontally).
+- Auto-scroll does not run for keyboard-driven range extension (`Shift+Arrow`) — `scrollToRow` / `scrollIntoView` is enough there because the focus moves one cell at a time.
+
 ### Keyboard interactions
 
-Phase 1 ships these; defer more advanced keyboard nav to phase 2.
+Phase 1 ships these; defer more advanced keyboard nav to phase 2. **All grid keyboard handling is gated on `focusedCell !== null`** — see "Focused cell" below for why. When no cell is focused, the grid does not `preventDefault` arrow keys, so the browser handles them natively (page scroll).
 
-| Key | Effect |
+| Key | Effect (only when a cell is focused) |
 |---|---|
 | Arrow keys | Move focus by one cell, collapse to 1×1. |
 | Shift + arrow | Extend focus from anchor. |
-| Esc | Clear range. |
-| Ctrl/Cmd + C | Fire `onRangeCopy(range, tsv)`. Grid provides default TSV serialization; consumer can override. |
-| Ctrl/Cmd + A | Select all visible cells on current page (from first visible to last visible row × first to last column in visual order). |
+| Esc | Clear range. Focus stays. |
+| Ctrl/Cmd + C | Fire `onRangeCopy(range, ctx)` if provided (see Callback API below). |
+| Ctrl/Cmd + A | Select all visible cells on current page (anchor → top-left, focus → bottom-right). Works even with no prior focus, because Ctrl+A is unambiguous; sets focus to bottom-right after. |
 
-**Phase 1 keyboard scope:** ship arrow, shift+arrow, Esc, Ctrl+C, Ctrl+A. Focus management: grid body has `tabIndex={0}` so it can receive keyboard events. The grid tracks a "focused cell" that defaults to anchor on drag end.
+**Phase 1 keyboard scope:** ship arrow, shift+arrow, Esc, Ctrl+C, Ctrl+A. Focus management: grid body has `tabIndex={0}` so it can receive keyboard events. The grid tracks a "focused cell" — see next section.
+
+### Focused cell
+
+The "focused cell" is `{ rowIndex, columnId } | null`, separate from the cell range. It's the cursor — where arrow keys move from, the implicit 1×1 selection for Ctrl+C if no range is active, and the anchor seed for `Shift+Arrow` from a no-range state.
+
+**Mutations:**
+
+| Event | Effect on focused cell |
+|---|---|
+| Click on a cell | Set focused cell to that cell. |
+| `mousedown` (range start) | Set focused cell to the anchor cell. |
+| Range drag (`mouseenter` while dragging) | Move focused cell with the focus endpoint. |
+| Arrow / Shift+Arrow | Move focused cell. |
+| Ctrl+A | Set focused cell to bottom-right of the resulting range. |
+| Esc | Range clears; **focus stays**. |
+| Page change (`pageIndex` updated) | Focus clears (`null`). |
+| Filter / sort change | Focus clears (range already clears here too). |
+| Page size change | Focus clears. |
+
+**Strict no-op when `focusedCell === null`:** the grid does not intercept arrow keys / Shift+Arrow / Ctrl+C in this state. They flow through to the browser, which means **arrow keys produce native page scroll** as the user expects when nothing is focused. Cell traversal only activates after the user clicks (or starts a drag) inside the grid. Ctrl+A is the one exception — it always works because there's no ambiguity about what "select all" means.
+
+**Why this design:** simpler than (a) reset-to-top-left (no surprise jump to a cell the user wasn't looking at) and preserves familiar browser behavior on a fresh page. Cost is one extra click after page navigation if the user wants to keyboard-nav — acceptable.
 
 ### Callback API (phase 1)
 
@@ -122,14 +153,43 @@ Phase 1 ships these; defer more advanced keyboard nav to phase 2.
 type DataGridProps<TRow> = {
   // ...
   onRangeContextMenu?: (e: MouseEvent, range: CellRange) => void
-  onRangeCopy?: (range: CellRange, defaultTsv: string) => void
+
+  // Ctrl+C: fired only if provided. Grid passes a getCellValue helper and the
+  // resolved column list (in current visual order, including pinned). Consumer
+  // returns the string to write to the clipboard, or null/undefined/void to
+  // signal "I handled it" (or "do nothing"). If the consumer wants the
+  // built-in TSV behavior, they call `defaultRangeToTSV(...)` and return its
+  // result.
+  onRangeCopy?: (
+    range: CellRange,
+    ctx: {
+      getCellValue: (rowIndex: number, columnId: string) => unknown
+      columns: DataGridColumnDef<TRow>[]   // visible columns, visual order
+    }
+  ) => string | null | void
 }
 ```
 
-- `onRangeContextMenu` is called on right-click. The consumer renders a menu. Grid does NOT provide one.
-- `onRangeCopy` is called on Ctrl+C. Default behavior: grid writes the default TSV to the clipboard itself via `navigator.clipboard.writeText`. If the consumer provides the callback, the grid calls it and lets the consumer decide whether to write to clipboard.
+- `onRangeContextMenu` — grid marks/preserves the range, fires the event. Consumer renders their own menu (Copy, Bulk edit, Export, whatever they want).
+- `onRangeCopy` — grid does **not** ship a baked-in default. If the prop is omitted, Ctrl+C is a no-op inside the grid. If the prop returns a string, the grid writes it to the clipboard via `navigator.clipboard.writeText`. If it returns `null` / `undefined` / `void`, the grid writes nothing (consumer either wrote it themselves or chose to drop the event).
 
-### Default TSV serialization
+**Why no built-in default?** The grid sees raw `accessor` output, not rendered cell text. A `MultiSelectCell` showing chips, a `DateCell` showing "yesterday 3pm", a custom `BadgeCell` — none of them serialize sensibly via `String(value)`. Once a default ships it locks in (consumers depend on the exact whitespace, date format, null encoding) and can't be changed without breaking everyone. Forcing the consumer to opt in keeps the grid's contract narrow and lets each schema own its own serialization.
+
+### Helper: `defaultRangeToTSV`
+
+Exported from `@/components/DataGrid` as a convenience. Most consumers will use it verbatim:
+
+```ts
+import { defaultRangeToTSV } from '@/components/DataGrid'
+
+<DataGrid
+  onRangeCopy={(range, { getCellValue, columns }) =>
+    defaultRangeToTSV(range, getCellValue, columns)
+  }
+/>
+```
+
+Behavior of `defaultRangeToTSV`:
 
 ```
 Col1\tCol2\tCol3\n
@@ -137,10 +197,18 @@ Col1\tCol2\tCol3\n
 ```
 
 - Newlines between rows, tabs between cells.
-- Multi-select values joined with `, `.
-- `null` / `undefined` → empty cell.
-- RTF values: strip HTML to plain text.
-- Dates: ISO string by default. Consumers can override in phase 2.
+- Iterates the visible-column slice that the range covers, in visual order.
+- For each cell: calls `getCellValue(rowIndex, columnId)` and coerces to string.
+  - `null` / `undefined` → empty string.
+  - `Array` → elements coerced to string and joined with `, `.
+  - `Date` → `.toISOString()`.
+  - Plain object → `JSON.stringify(value)` (escaped — see below).
+  - Anything else → `String(value)`.
+- Tabs / newlines / carriage returns inside any value are replaced with a single space (so the TSV stays parseable in Excel / Google Sheets).
+
+`defaultRangeToTSV` is a pure function. Consumers can wrap it (e.g. transform per-column, prepend a header row), call it conditionally, or skip it entirely.
+
+**Future / phase 2 (not shipping in phase 1):** per-column `toClipboard?: (value, row) => string` on `DataGridColumnDef`, consulted by `defaultRangeToTSV`. Adds locality (the cell renderer co-locates display + copy) without changing this API. Defer until a real consumer hits a wrong-default case.
 
 ### Clear conditions
 
@@ -157,14 +225,6 @@ Range does NOT clear on:
 - Row selection change
 - Column reorder / resize / pin (range follows columns by id, not visual index)
 
-### Scroll-while-dragging
-
-- If the mouse leaves the vertical viewport while dragging, auto-scroll the body container (8px per frame, accelerating if further out).
-- If the mouse leaves the horizontal viewport of the middle zone, auto-scroll horizontally.
-- Pinned columns do not auto-scroll (they're always visible).
-
-**Phase 1 scope:** basic auto-scroll (no acceleration curve). Tune after use.
-
 ## Interaction between the two selection systems
 
 - They share no state.
@@ -173,7 +233,11 @@ Range does NOT clear on:
 
 ## Open / TBD
 
-- **Focused cell after page navigation.** Does arrow-key focus persist across page boundaries? I'd say no — each page has its own focus, reset to top-left on page change. Confirm.
-- **Ctrl+C default behavior.** Writes to clipboard automatically or fires callback only? I default to "writes automatically, but consumer callback runs first and can override." Confirm.
 - **Select column or row by clicking header/row number?** Excel has this. Not in v1.
-- **Copy format options.** TSV only in v1. HTML / CSV / JSON are future.
+- **Copy format options.** Helper ships TSV only in v1. HTML / CSV / JSON are future — consumer can write their own `onRangeCopy` today.
+- **Per-column `toClipboard` hook.** Phase 2 candidate (see Helper section above). Not in v1.
+
+## Resolved (was open)
+
+- **Focused cell after page navigation.** Decision: clear (`null`). When `focusedCell === null`, grid does not intercept arrow keys → native browser scroll. Cell traversal only activates after the user clicks. See "Focused cell" section above.
+- **Ctrl+C default behavior.** Decision: no built-in default. Grid fires `onRangeCopy(range, ctx)` only if the prop is provided; consumer returns the string to write (or `defaultRangeToTSV(...)` for the canned format). See "Callback API" + "Helper" sections above.

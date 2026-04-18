@@ -254,6 +254,47 @@ Hot state (`cellRangeSelection` during drag, `activeEditor` draft changes) uses 
 
 This is the only state-management pattern we'd add later. **Not shipping it in phase 1.** Don't pre-optimize a problem that might not exist at our scale.
 
+### Pattern — reading TanStack state in memoed leaves
+
+TanStack Table keeps `Row` and `Cell` refs stable across many state changes. Methods on them (`cell.column.getSize()`, `cell.column.getIsPinned()`, `row.getIsSelected()`, etc.) return *live* state but don't invalidate the ref they hang off. A memoed component that calls these methods inside its own render will silently stale whenever its memo skips — the "stable" ref looks unchanged to `React.memo`, the render short-circuits, and the stale-at-last-render value stays on screen.
+
+**Rule:** do not call `get*()` methods on TanStack `Row` / `Cell` / `Column` objects inside a memoed component. Read them at an un-memoed boundary and pass the result in as explicit props. The props then become the authoritative memo-invalidation signal.
+
+```tsx
+// Un-memoed boundary — VirtualRow. Re-renders on every parent render; cheap
+// because virtualization caps the row count.
+cells.map((cell) => {
+  const pinned = cell.column.getIsPinned();
+  return (
+    <BodyCell
+      cell={cell}
+      size={cell.column.getSize()}
+      pinned={pinned}
+      pinLeft={pinned === "left" ? cell.column.getStart("left") : 0}
+      pinRight={pinned === "right" ? cell.column.getAfter("right") : 0}
+      // ...
+    />
+  );
+});
+```
+
+`BodyCell` (memoed) then reads `size`, `pinned`, `pinLeft`, `pinRight` from props, never from `cell.column.*`. Memo invalidates correctly on sizing / pinning changes; memo still short-circuits on unrelated state changes (e.g. another column resizing).
+
+**Applies to:**
+- `column.getSize()` — changes every mousemove during resize in `onChange` mode.
+- `column.getIsPinned()`, `getStart()`, `getAfter()` — change on pin/unpin and on resize of any column in the same pinned zone.
+- `row.getIsSelected()` (session 4) — changes on selection toggle.
+- Whatever `isInRange(rowIndex, columnId)` helper session 4 produces — changes during range drag.
+- Any future `get*()` method on `Row`/`Cell`/`Column` that reflects live table state.
+
+**Does NOT apply to:**
+- Values from `DataGridContext` (`cellExtras`, `featureFlags`) — stable by design; read via `useDataGridContext()` in the leaf.
+- `cell.getValue()` — cell refs *do* update when row data changes, so the memoed leaf naturally re-renders.
+
+**Reminder on where the un-memoed boundary lives:** it's `VirtualRow` (and anything similarly row-scoped). Virt caps the number of these mounted at any time, so skipping memo at that layer is cheap. Don't un-memoize the cell itself — the cell is the leaf where memo pays rent (especially for session 4's per-cell range flags).
+
+**Incidental masking in session 3:** `HeaderCell` currently re-renders on every parent render because `SortableHeaderCell` builds a fresh `drag` prop object each render, which invalidates `HeaderCell`'s memo unconditionally. This hides the pattern — but it's incidental. If `allowReorder` is disabled or the reorder wrapping changes, `HeaderCell` would stale on resize. The safer path is to apply the rule to headers too: read live sizing/pinning in `HeaderRow` / `ColumnReorderContext` and pass as props to `HeaderCell`. Worth cleaning up when session 4 touches these files.
+
 ### Explicitly rejected
 
 - **Redux / Jotai / Zustand.** Overkill for a single component's internal state. `useDataGrid` + `DataGridContext` covers everything durable. A custom `useSyncExternalStore` covers hot state only if needed.
@@ -264,7 +305,7 @@ This is the only state-management pattern we'd add later. **Not shipping it in p
 
 - **Session 1 (`useDataGrid`):** zero Context, zero stores. `useState` + memoized setters. The hook stays dumb.
 - **Session 2 (`<DataGrid />`):** create `DataGridContext` at the component top. Memoize its value. All cell / header components consume via `useDataGridContext()` for stable shared state. Prop-drill everything else.
-- **Session 4 (selection):** plain prop drilling + `React.memo`. Do NOT reach for a store unless you've profiled and it's clearly the bottleneck. If it is, the store pattern lives inside `<DataGrid />`'s internals — doesn't touch the public cell component API.
+- **Session 4 (selection):** plain prop drilling + `React.memo`. Do NOT reach for a store unless you've profiled and it's clearly the bottleneck. If it is, the store pattern lives inside `<DataGrid />`'s internals — doesn't touch the public cell component API. **Any cell-level state derived from TanStack `Row`/`Cell`/`Column` methods (selection, range membership, editor activity) must follow the "Reading TanStack state in memoed leaves" pattern above — read at `VirtualRow` level, pass as explicit props. Session 3 shipped two bugs that traced back to violating this; the fix shape is already in `VirtualRow.tsx` / `BodyCell.tsx`.**
 
 ## File layout (proposed)
 
