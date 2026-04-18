@@ -1,4 +1,4 @@
-import { memo, type CSSProperties } from "react";
+import { memo, type CSSProperties, type MouseEvent } from "react";
 import type { Cell } from "@tanstack/react-table";
 import clsx from "clsx";
 import type {
@@ -15,15 +15,20 @@ type BodyCellProps<TRow> = {
   cell: Cell<TRow, unknown>;
   rowIndex: number;
   rowId: string;
-  // Size / pin state are passed as explicit props rather than read off
-  // `cell.column.*` because TanStack keeps cell refs stable even when
-  // column sizing or pinning changes — if we read inside the memo'd cell,
-  // resizes silently stale the body. Passing them in makes memo invalidate
-  // on the state that actually affects layout.
+  // Live TanStack / range / selection state — passed in from VirtualRow (the
+  // un-memoed boundary). Reading these off `cell.column.*` or
+  // `cell.row.getIsSelected()` here would silently stale on memo skip.
   size: number;
   pinned: "left" | "right" | false;
   pinLeft: number;
   pinRight: number;
+  isInRange: boolean;
+  isRangeAnchor: boolean;
+  isRangeFocus: boolean;
+  isSelected: boolean;
+  // The __select__ column opts out of range-drag handlers so clicking a
+  // checkbox doesn't start / clear a range.
+  wireRangeHandlers: boolean;
 };
 
 const NOOP = () => {};
@@ -36,8 +41,13 @@ function BodyCellRender<TRow>({
   pinned,
   pinLeft,
   pinRight,
+  isInRange,
+  isRangeAnchor,
+  isRangeFocus,
+  isSelected,
+  wireRangeHandlers,
 }: BodyCellProps<TRow>) {
-  const { cellExtras } = useDataGridContext();
+  const { cellExtras, cellMouseHandlers } = useDataGridContext();
 
   const meta = cell.column.columnDef.meta as
     | { dataGridColumn?: DataGridColumnDef<TRow> }
@@ -70,11 +80,24 @@ function BodyCellRender<TRow>({
     setDraftValue: NOOP,
     commitEdit: NOOP,
     cancelEdit: NOOP,
-    isInRange: false,
-    isRangeAnchor: false,
-    isRangeFocus: false,
+    isInRange,
+    isRangeAnchor,
+    isRangeFocus,
+    isSelected,
     extras: cellExtras,
   };
+
+  const onMouseDown = wireRangeHandlers
+    ? (e: MouseEvent<HTMLDivElement>) =>
+        cellMouseHandlers.onCellMouseDown(rowIndex, cell.column.id, e)
+    : undefined;
+  const onMouseEnter = wireRangeHandlers
+    ? () => cellMouseHandlers.onCellMouseEnter(rowIndex, cell.column.id)
+    : undefined;
+  const onContextMenu = wireRangeHandlers
+    ? (e: MouseEvent<HTMLDivElement>) =>
+        cellMouseHandlers.onCellContextMenu(rowIndex, cell.column.id, e)
+    : undefined;
 
   return (
     <div
@@ -82,6 +105,10 @@ function BodyCellRender<TRow>({
         styles.bodyCell,
         pinned === "left" && styles.bodyCellPinnedLeft,
         pinned === "right" && styles.bodyCellPinnedRight,
+        isInRange && styles.bodyCellInRange,
+        isRangeAnchor && styles.bodyCellRangeAnchor,
+        isRangeFocus && styles.bodyCellRangeFocus,
+        isSelected && styles.bodyCellRowSelected,
       )}
       style={{
         width: size,
@@ -90,6 +117,10 @@ function BodyCellRender<TRow>({
         ...pinStyle,
       }}
       role="cell"
+      data-column-id={cell.column.id}
+      onMouseDown={onMouseDown}
+      onMouseEnter={onMouseEnter}
+      onContextMenu={onContextMenu}
     >
       <Renderer {...cellProps} />
     </div>

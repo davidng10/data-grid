@@ -1,4 +1,3 @@
-import { memo } from "react";
 import type { Header } from "@tanstack/react-table";
 import { HeaderCell } from "./HeaderCell";
 import { ColumnReorderContext } from "../dnd/ColumnReorderContext";
@@ -11,7 +10,12 @@ type HeaderRowProps<TRow> = {
   totalWidth: number;
 };
 
-function HeaderRowRender<TRow>({
+// Intentionally NOT memoized. HeaderRow is the un-memoed boundary that reads
+// live TanStack state (`getSize`, `getIsPinned`, `getIsSorted`, etc.) and
+// passes the values down as explicit props. There's only one HeaderRow per
+// table with ~40 children at most, so re-running it on every parent render
+// is cheap and removes the risk of a memo skip silently staling the headers.
+export function HeaderRow<TRow>({
   headers,
   height,
   totalWidth,
@@ -34,11 +38,20 @@ function HeaderRowRender<TRow>({
       style={{ height, width: totalWidth, minWidth: totalWidth }}
       role="row"
     >
-      {headers.map((header) => (
-        <HeaderCell key={header.id} header={header} />
-      ))}
+      {headers.map((header) => {
+        const pinned = header.column.getIsPinned();
+        return (
+          <HeaderCell
+            key={header.id}
+            header={header}
+            size={header.getSize()}
+            pinned={pinned}
+            pinLeft={pinned === "left" ? header.column.getStart("left") : 0}
+            pinRight={pinned === "right" ? header.column.getAfter("right") : 0}
+            sortDir={header.column.getIsSorted()}
+          />
+        );
+      })}
     </div>
   );
 }
-
-export const HeaderRow = memo(HeaderRowRender) as typeof HeaderRowRender;

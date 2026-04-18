@@ -1,4 +1,4 @@
-import type { ComponentType, MouseEvent, ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type {
   HeaderContext as TSTHeaderContext,
   OnChangeFn,
@@ -108,6 +108,8 @@ export type DataGridCellProps<TRow, TValue = unknown> = {
   isRangeAnchor: boolean;
   isRangeFocus: boolean;
 
+  isSelected: boolean;
+
   extras: Record<string, unknown>;
 };
 
@@ -170,9 +172,25 @@ export type DataGridProps<TRow> = {
 
   cellExtras?: Record<string, unknown>;
 
-  onRangeContextMenu?: (e: MouseEvent, range: CellRange) => void;
-  onRangeCopy?: (range: CellRange, tsv: string) => void;
+  // Right-click on a cell. The grid marks/preserves the range and fires this
+  // event with the native MouseEvent — consumer renders their own menu.
+  onRangeContextMenu?: (e: globalThis.MouseEvent, range: CellRange) => void;
+  // Ctrl+C: fired only if provided. Consumer returns the string the grid
+  // should write to the clipboard, or null/undefined/void to opt out (the
+  // grid writes nothing). For the canned TSV behavior, call
+  // `defaultRangeToTSV(range, getCellValue, columns)` and return its result.
+  onRangeCopy?: (
+    range: CellRange,
+    ctx: RangeCopyContext<TRow>,
+  ) => string | null | void;
 
   emptyState?: ReactNode;
   className?: string;
+};
+
+export type RangeCopyContext<TRow> = {
+  getCellValue: (rowIndex: number, columnId: string) => unknown;
+  // Visible columns in current visual order (left pinned → middle → right
+  // pinned), filtered to those the range covers — matches what the user sees.
+  columns: DataGridColumnDef<TRow>[];
 };

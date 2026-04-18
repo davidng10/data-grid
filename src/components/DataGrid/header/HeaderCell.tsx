@@ -14,43 +14,64 @@ import { HeaderMenu } from "./HeaderMenu";
 import { ResizeHandle } from "./ResizeHandle";
 import styles from "../DataGrid.module.css";
 
-export type HeaderCellDragProps = {
-  setNodeRef: (node: HTMLElement | null) => void;
-  transformStyle: string | undefined;
-  transitionStyle: string | undefined;
-  listeners: SyntheticListenerMap | undefined;
-  attributes: DraggableAttributes;
-  isDragging: boolean;
-  disabled: boolean;
-};
+type SortDir = false | "asc" | "desc";
 
 type HeaderCellProps<TRow> = {
   header: Header<TRow, unknown>;
-  drag?: HeaderCellDragProps;
+  // Live TanStack state is read at the un-memoed boundary (HeaderRow /
+  // ColumnReorderContext) and forwarded as explicit props. If we read these
+  // off `header.column.*` here, a memo skip would silently render stale
+  // sizing / pinning / sort. See plan/01_architecture.md "Pattern — reading
+  // TanStack state in memoed leaves".
+  size: number;
+  pinned: "left" | "right" | false;
+  pinLeft: number;
+  pinRight: number;
+  sortDir: SortDir;
+  // Drag plumbing (only present when reorder is enabled). Flat props rather
+  // than a wrapper object so React.memo's shallow compare reflects what
+  // actually changed.
+  dragSetNodeRef?: (node: HTMLElement | null) => void;
+  dragTransform?: string;
+  dragTransition?: string;
+  dragListeners?: SyntheticListenerMap;
+  dragAttributes?: DraggableAttributes;
+  dragIsDragging?: boolean;
+  dragDisabled?: boolean;
 };
 
-function HeaderCellRender<TRow>({ header, drag }: HeaderCellProps<TRow>) {
+function HeaderCellRender<TRow>({
+  header,
+  size,
+  pinned,
+  pinLeft,
+  pinRight,
+  sortDir,
+  dragSetNodeRef,
+  dragTransform,
+  dragTransition,
+  dragListeners,
+  dragAttributes,
+  dragIsDragging,
+  dragDisabled,
+}: HeaderCellProps<TRow>) {
   const { featureFlags } = useDataGridContext();
-  const size = header.getSize();
-  const pinned = header.column.getIsPinned();
   const pinStyle: CSSProperties =
     pinned === "left"
-      ? { left: `${header.column.getStart("left")}px` }
+      ? { left: `${pinLeft}px` }
       : pinned === "right"
-        ? { right: `${header.column.getAfter("right")}px` }
+        ? { right: `${pinRight}px` }
         : {};
 
-  const dragStyle: CSSProperties = drag
-    ? {
-        transform: drag.transformStyle,
-        transition: drag.transitionStyle,
-      }
-    : {};
+  const dragStyle: CSSProperties = {
+    transform: dragTransform,
+    transition: dragTransition,
+  };
 
   if (header.isPlaceholder) {
     return (
       <div
-        ref={drag?.setNodeRef}
+        ref={dragSetNodeRef}
         className={clsx(
           styles.headerCell,
           pinned === "left" && styles.headerCellPinnedLeft,
@@ -69,32 +90,30 @@ function HeaderCellRender<TRow>({ header, drag }: HeaderCellProps<TRow>) {
   const columnAllowsSort =
     dgColumn?.meta?.sortable === undefined ? true : dgColumn.meta.sortable;
   const sortable = featureFlags.sorting && columnAllowsSort;
-  const sortDir = header.column.getIsSorted();
 
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     if (!sortable) return;
     e.preventDefault();
-    const current = header.column.getIsSorted();
-    if (current === false) {
+    if (sortDir === false) {
       header.column.toggleSorting(false, false);
-    } else if (current === "asc") {
+    } else if (sortDir === "asc") {
       header.column.toggleSorting(true, false);
     } else {
       header.column.clearSorting();
     }
   };
 
-  const showDragHandle = !!drag && !drag.disabled;
+  const showDragHandle = !!dragSetNodeRef && !dragDisabled;
 
   return (
     <div
-      ref={drag?.setNodeRef}
+      ref={dragSetNodeRef}
       className={clsx(
         styles.headerCell,
         sortable && styles.headerCellSortable,
         pinned === "left" && styles.headerCellPinnedLeft,
         pinned === "right" && styles.headerCellPinnedRight,
-        drag?.isDragging && styles.headerCellDragging,
+        dragIsDragging && styles.headerCellDragging,
       )}
       style={{ width: size, minWidth: size, ...pinStyle, ...dragStyle }}
       role="columnheader"
@@ -111,11 +130,11 @@ function HeaderCellRender<TRow>({ header, drag }: HeaderCellProps<TRow>) {
         <span
           className={styles.headerDragHandle}
           aria-label="Drag to reorder"
-          {...drag!.attributes}
+          {...(dragAttributes ?? {})}
           onClick={(e: MouseEvent<HTMLSpanElement>) => e.stopPropagation()}
           onPointerDown={(e: ReactPointerEvent<HTMLSpanElement>) => {
             e.stopPropagation();
-            drag!.listeners?.onPointerDown?.(e);
+            dragListeners?.onPointerDown?.(e);
           }}
         >
           ⋮⋮

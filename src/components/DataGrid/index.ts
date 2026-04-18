@@ -1,5 +1,6 @@
 export { DataGrid } from "./DataGrid";
-export { TextCell } from "./cells";
+export { TextCell, CheckboxCell } from "./cells";
+export { defaultRangeToTSV } from "./selection/defaultRangeToTSV";
 
 export type {
   ActiveEditorState,
@@ -17,5 +18,6 @@ export type {
   DataGridView,
   HeaderContext,
   PaginationState,
+  RangeCopyContext,
   SortingState,
 } from "./DataGrid.types";

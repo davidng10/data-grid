@@ -256,3 +256,132 @@
   color: var(--dg-muted);
   cursor: not-allowed;
 }
+
+/* ----- Selection ----- */
+
+.rowCheckbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.bodyCellInRange {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.bodyCellPinnedLeft.bodyCellInRange,
+.bodyCellPinnedRight.bodyCellInRange {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.bodyCellRangeAnchor,
+.bodyCellRangeFocus {
+  outline: 1px solid rgba(37, 99, 235, 0.6);
+  outline-offset: -1px;
+}
+
+.bodyCellRowSelected {
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.bodyCellRowSelected.bodyCellPinnedLeft,
+.bodyCellRowSelected.bodyCellPinnedRight {
+  background: rgba(37, 99, 235, 0.05);
+}
+
+/* ----- Refetch bar ----- */
+
+@keyframes dgRefetchBar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.refetchBar {
+  position: relative;
+  height: 2px;
+  flex-shrink: 0;
+  background: rgba(37, 99, 235, 0.2);
+  overflow: hidden;
+}
+
+.refetchBar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 30%;
+  background: rgba(37, 99, 235, 0.9);
+  animation: dgRefetchBar 1.2s linear infinite;
+}
+
+/* ----- Loading skeleton ----- */
+
+@keyframes dgSkeletonShimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeletonRow {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--dg-border-soft);
+  background: var(--dg-row-bg);
+  overflow: hidden;
+}
+
+.skeletonShimmer {
+  width: 100%;
+  height: 14px;
+  margin: 0 12px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.04) 25%,
+    rgba(0, 0, 0, 0.08) 50%,
+    rgba(0, 0, 0, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: dgSkeletonShimmer 1.4s linear infinite;
+}
+
+/* ----- Sticky scroll shadows ----- */
+
+/* The shadow is rendered as a thin vertical gradient overlay just inside the
+ * pinned edge of the scroll container. Pure CSS — toggled by classes the
+ * grid sets from a single scroll listener. */
+
+.rootShadowLeft .scrollContainer::before,
+.rootShadowRight .scrollContainer::after {
+  content: "";
+  position: sticky;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* The above approach with ::before/::after on a flex parent is fiddly across
+ * browsers. We use a simpler approach: render the shadow as a wider box-shadow
+ * on pinned cells when the parent has the shadow class. */
+
+.rootShadowLeft .headerCellPinnedLeft,
+.rootShadowLeft .bodyCellPinnedLeft {
+  box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.18);
+  clip-path: inset(0 -8px 0 0);
+}
+
+.rootShadowRight .headerCellPinnedRight,
+.rootShadowRight .bodyCellPinnedRight {
+  box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.18);
+  clip-path: inset(0 0 0 -8px);
+}
+
+.rootShadowLeft .scrollContainer::before,
+.rootShadowRight .scrollContainer::after {
+  display: none;
+}

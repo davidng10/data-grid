@@ -164,13 +164,24 @@ export function ColumnReorderContext<TRow>({
         items={ids}
         strategy={horizontalListSortingStrategy}
       >
-        {items.map((h) => (
-          <SortableHeaderCell
-            key={h.id}
-            header={h}
-            disabled={fixedPositionIds.has(h.column.id)}
-          />
-        ))}
+        {items.map((h) => {
+          // Read live TanStack state at this un-memoed boundary and pass as
+          // explicit props. See plan/01_architecture.md "Pattern — reading
+          // TanStack state in memoed leaves".
+          const pinned = h.column.getIsPinned();
+          return (
+            <SortableHeaderCell
+              key={h.id}
+              header={h}
+              disabled={fixedPositionIds.has(h.column.id)}
+              size={h.getSize()}
+              pinned={pinned}
+              pinLeft={pinned === "left" ? h.column.getStart("left") : 0}
+              pinRight={pinned === "right" ? h.column.getAfter("right") : 0}
+              sortDir={h.column.getIsSorted()}
+            />
+          );
+        })}
       </SortableContext>
     );
   };

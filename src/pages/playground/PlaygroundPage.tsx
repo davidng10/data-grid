@@ -5,6 +5,8 @@ import { useLocalStorageColumnConfig } from "../../hooks/useLocalStorageColumnCo
 import {
   DataGrid,
   TextCell,
+  defaultRangeToTSV,
+  type CellRange,
   type CellRenderer,
   type DataGridColumnDef,
   type DataGridHandle,
@@ -286,6 +288,41 @@ export const PlaygroundPage = () => {
 
   const [columnsModalOpen, setColumnsModalOpen] = useState(false);
 
+  // Right-click on a cell range opens a stand-in "menu" — real consumers
+  // would render their own (Copy, Bulk edit, Export, …). The grid itself
+  // never renders a menu.
+  const onRangeContextMenu = (e: globalThis.MouseEvent, range: CellRange) => {
+    const rows =
+      Math.abs(range.focus.rowIndex - range.anchor.rowIndex) + 1;
+    e.preventDefault();
+    message.info(
+      `Range context menu: ${rows} row(s), anchor ${range.anchor.columnId} → focus ${range.focus.columnId}`,
+    );
+  };
+
+  // Ctrl+C: hand back the canned TSV. Returning the string causes the grid
+  // to call navigator.clipboard.writeText for us. We log it as well so the
+  // playground demo can confirm what was copied without leaving the tab.
+  const onRangeCopy = (
+    range: CellRange,
+    ctx: { getCellValue: (r: number, c: string) => unknown; columns: DataGridColumnDef<Row>[] },
+  ) => {
+    const tsv = defaultRangeToTSV(range, ctx.getCellValue, ctx.columns);
+    console.log("[playground] onRangeCopy →", { range, tsv });
+    return tsv;
+  };
+
+  const showSelection = () => {
+    const range = grid.rangeSelection.current;
+    const rangeStr = range
+      ? `range: rows ${Math.min(range.anchor.rowIndex, range.focus.rowIndex)}–${Math.max(range.anchor.rowIndex, range.focus.rowIndex)}, cols ${range.anchor.columnId} → ${range.focus.columnId}`
+      : "range: (none)";
+    message.info(
+      `Selected rows (${grid.selection.rowIds.length}): ${grid.selection.rowIds.slice(0, 5).join(", ")}${grid.selection.rowIds.length > 5 ? "…" : ""} · ${rangeStr}`,
+      6,
+    );
+  };
+
   return (
     <div
       style={{
@@ -297,11 +334,13 @@ export const PlaygroundPage = () => {
     >
       <div style={{ flexShrink: 0, padding: "16px 16px 8px" }}>
         <h1 style={{ margin: 0, fontSize: 20 }}>
-          DataGrid playground — session 3
+          DataGrid playground — session 4
         </h1>
         <p style={{ color: "#666", margin: "4px 0 12px" }}>
-          Pinning, resize, reorder (drag handle), column visibility modal,
-          fixed-flag demos.
+          Row + range selection, copy via <code>defaultRangeToTSV</code>,
+          right-click context-menu hook, sticky scroll shadows, loading /
+          empty / refetch states. Drag a range; Ctrl/Cmd+C; arrow keys after
+          clicking a cell.
         </p>
 
         <div
@@ -385,6 +424,18 @@ export const PlaygroundPage = () => {
           >
             Columns…
           </Button>
+
+          <span style={{ width: 12 }} />
+
+          <Button size="small" onClick={showSelection}>
+            Show selection
+          </Button>
+          <Button size="small" onClick={() => grid.selection.clear()}>
+            Clear row selection
+          </Button>
+          <Button size="small" onClick={() => grid.rangeSelection.clear()}>
+            Clear range
+          </Button>
         </div>
       </div>
 
@@ -403,6 +454,8 @@ export const PlaygroundPage = () => {
           rowCount={totalCount}
           getRowId={(r) => r.id}
           columns={COLUMNS}
+          onRangeContextMenu={onRangeContextMenu}
+          onRangeCopy={onRangeCopy}
         />
       </div>
 
