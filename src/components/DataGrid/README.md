@@ -12,7 +12,6 @@ import { DataGrid, TextCell, defaultRangeToTSV } from "@/components/DataGrid";
 import { useDataGrid } from "@/hooks/useDataGrid";
 import { useLocalStorageColumnConfig } from "@/hooks/useLocalStorageColumnConfig";
 import { useQuery } from "@tanstack/react-query";
-
 import type { DataGridColumnDef, DataGridView } from "@/components/DataGrid";
 
 type Row = { id: string; name: string; price: number; createdAt: string };
