@@ -35,15 +35,6 @@ export type UseDataGridOptions<TFilters> = {
   fixedPositionColumnIds?: string[];
   fixedPinnedLeft?: string[];
   fixedPinnedRight?: string[];
-
-  allowSorting?: boolean;
-  allowPinning?: boolean;
-  allowReorder?: boolean;
-  allowResize?: boolean;
-  allowColumnVisibility?: boolean;
-  allowRowSelection?: boolean;
-  allowRangeSelection?: boolean;
-  allowInlineEdit?: boolean;
 };
 
 export type UseDataGridResult<TRow, TFilters> = {
@@ -78,14 +69,6 @@ export function useDataGrid<TRow, TFilters>(
     fixedPositionColumnIds,
     fixedPinnedLeft,
     fixedPinnedRight,
-    allowSorting = true,
-    allowPinning = true,
-    allowReorder = true,
-    allowResize = true,
-    allowColumnVisibility = true,
-    allowRowSelection = true,
-    allowRangeSelection = true,
-    allowInlineEdit = false,
   } = options;
 
   // Transient state owned end-to-end by the grid (rowSelection, cellRange,
@@ -266,15 +249,6 @@ export function useDataGrid<TRow, TFilters>(
 
       activeEditor,
       onActiveEditorChange: tx.setActiveEditor,
-
-      allowSorting,
-      allowPinning,
-      allowReorder,
-      allowResize,
-      allowColumnVisibility,
-      allowRowSelection,
-      allowRangeSelection,
-      allowInlineEdit,
     }),
     [
       rowCount,
@@ -287,14 +261,6 @@ export function useDataGrid<TRow, TFilters>(
       columnConfig.columnOrder,
       columnConfig.columnSizing,
       columnConfig.columnPinning,
-      allowSorting,
-      allowPinning,
-      allowReorder,
-      allowResize,
-      allowColumnVisibility,
-      allowRowSelection,
-      allowRangeSelection,
-      allowInlineEdit,
       // tx setters are stable (useCallback over stable dispatch) — depend on
       // the bundle identity rather than each setter individually.
       tx,

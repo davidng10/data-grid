@@ -1,14 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Button, Checkbox, Modal, Tooltip, message } from "antd";
 
-import {
-  DataGrid,
-  TextCell,
-  defaultRangeToTSV,
-  useDataGrid,
-} from "../../components/DataGrid";
-import { useLocalStorageColumnConfig } from "../../hooks/useLocalStorageColumnConfig";
-
 import type {
   CellRange,
   DataGridCellProps,
@@ -17,6 +9,14 @@ import type {
   DataGridView,
   SortingState,
 } from "../../components/DataGrid";
+
+import {
+  DataGrid,
+  TextCell,
+  defaultRangeToTSV,
+  useDataGrid,
+} from "../../components/DataGrid";
+import { useLocalStorageColumnConfig } from "../../hooks/useLocalStorageColumnConfig";
 
 type Row = {
   id: string;
@@ -460,6 +460,8 @@ export const PlaygroundPage = () => {
           onRangeContextMenu={onRangeContextMenu}
           onRangeCopy={onRangeCopy}
           isLoading={isLoading}
+          allowSorting
+          allowPinning
         />
       </div>
 
