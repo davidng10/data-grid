@@ -21,7 +21,13 @@ import type { DataGridColumnDef, DataGridHandle, DataGridProps } from "./types";
 import { BodyRow } from "./components/body/BodyRow";
 import { OverlayColumnShadow } from "./components/body/OverlapColumnShadow";
 import { HeaderRow } from "./components/header/HeaderRow";
-import { EMPTY_EXTRAS, SELECT_COLUMN_ID } from "./constants";
+import {
+  DEFAULT_HEADER_HEIGHT,
+  DEFAULT_OVERSCAN,
+  DEFAULT_ROW_HEIGHT,
+  EMPTY_EXTRAS,
+  SELECT_COLUMN_ID,
+} from "./constants";
 import { useCellRangeSelection } from "./hooks/useCellRangeSelection";
 import { useDataGridColumns } from "./hooks/useDataGridColumns";
 import {
@@ -73,9 +79,9 @@ function DataGridInner<TRow>(
     allowRowSelection = false,
     allowRangeSelection = false,
     allowInlineEdit = false,
-    rowHeight = 40,
-    headerHeight = 40,
-    overscan = 25,
+    rowHeight = DEFAULT_ROW_HEIGHT,
+    headerHeight = DEFAULT_HEADER_HEIGHT,
+    overscan = DEFAULT_OVERSCAN,
     cellExtras,
     emptyState,
     className,

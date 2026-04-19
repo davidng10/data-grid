@@ -4,3 +4,7 @@
 export const SELECT_COLUMN_ID = "__select__";
 
 export const EMPTY_EXTRAS: Record<string, unknown> = Object.freeze({});
+
+export const DEFAULT_ROW_HEIGHT = 40;
+export const DEFAULT_HEADER_HEIGHT = 40;
+export const DEFAULT_OVERSCAN = 25;
