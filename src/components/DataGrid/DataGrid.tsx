@@ -10,78 +10,34 @@ import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 
-import { DataGridContext } from "./DataGridContext";
-import { BodyRow } from "./body/BodyRow";
-import { OverlayColumnShadow } from "./body/OverlapColumnShadow";
-import { CheckboxCell } from "./cells/CheckboxCell";
-import { HeaderCheckbox } from "./header/HeaderCheckbox";
-import { HeaderRow } from "./header/HeaderRow";
-import { HeaderSelectionContext } from "./selection/HeaderSelectionContext";
-import { SELECT_COLUMN_ID } from "./selection/constants";
-import { useCellRangeSelection } from "./selection/useCellRangeSelection";
-import { useRowSelection } from "./selection/useRowSelection";
-
-import type { ColumnDef, OnChangeFn } from "@tanstack/react-table";
 import type { ForwardedRef, ReactElement } from "react";
 import type {
-  DataGridColumnDef,
-  DataGridHandle,
-  DataGridProps,
-} from "./DataGrid.types";
-import type {
-  DataGridContextValue,
+  DataGridActionsValue,
+  DataGridConfigValue,
   DataGridFeatureFlags,
-} from "./DataGridContext";
+} from "./hooks/useDataGridContext";
+import type { DataGridColumnDef, DataGridHandle, DataGridProps } from "./types";
 
+import { BodyRow } from "./components/body/BodyRow";
+import { OverlayColumnShadow } from "./components/body/OverlapColumnShadow";
+import { HeaderRow } from "./components/header/HeaderRow";
+import { EMPTY_EXTRAS, SELECT_COLUMN_ID } from "./constants";
+import { useCellRangeSelection } from "./hooks/useCellRangeSelection";
+import { useDataGridColumns } from "./hooks/useDataGridColumns";
+import {
+  DataGridActionsContext,
+  DataGridConfigContext,
+} from "./hooks/useDataGridContext";
+import { HeaderSelectionContext } from "./hooks/useHeaderSelectionContext";
+import { useRowSelection } from "./hooks/useRowSelection";
+import { shouldClearRangeForVisibilityChange } from "./utils/rangeVisibility";
 import styles from "./DataGrid.module.css";
 
 declare const process: { readonly env: { readonly NODE_ENV: string } };
 
-// TanStack's ColumnPinningState has optional `left?: string[]` / `right?: string[]`;
-// ours has required arrays. They're otherwise identical — cast at the boundary.
-type TSTColumnPinning = { left?: string[]; right?: string[] };
-
-const EMPTY_EXTRAS: Record<string, unknown> = Object.freeze({});
-
-function toTanStackColumns<TRow>(
-  columns: DataGridColumnDef<TRow>[],
-): ColumnDef<TRow>[] {
-  return columns.map((col) => {
-    const headerDef = col.header;
-    return {
-      id: col.id,
-      header:
-        typeof headerDef === "string" ? headerDef : (ctx) => headerDef(ctx),
-      accessorFn: (row: TRow) => col.accessor(row),
-      size: col.width ?? 160,
-      minSize: col.minWidth ?? 60,
-      maxSize: col.maxWidth ?? 800,
-      enableSorting:
-        col.meta?.sortable === undefined ? true : col.meta.sortable,
-      meta: {
-        dataGridColumn: col,
-      },
-    };
-  });
-}
-
-// The injected row-selection column. Defined at module scope (and never
-// re-built) so it stays referentially stable across renders — its inclusion
-// in the columns array therefore doesn't churn the TanStack Table instance.
-const SELECT_COLUMN: DataGridColumnDef<unknown> = {
-  id: SELECT_COLUMN_ID,
-  header: () => <HeaderCheckbox />,
-  accessor: () => null,
-  render: (p) => <CheckboxCell {...p} />,
-  width: 44,
-  minWidth: 44,
-  maxWidth: 44,
-  pin: "left",
-  fixedPin: true,
-  fixedPosition: true,
-  fixedVisible: true,
-  meta: { sortable: false },
-};
+type DataGridComponent = <TRow>(
+  props: DataGridProps<TRow> & { ref?: ForwardedRef<DataGridHandle> },
+) => ReactElement;
 
 function DataGridInner<TRow>(
   props: DataGridProps<TRow>,
@@ -119,7 +75,7 @@ function DataGridInner<TRow>(
     allowInlineEdit = false,
     rowHeight = 40,
     headerHeight = 40,
-    overscan = 10,
+    overscan = 25,
     cellExtras,
     emptyState,
     className,
@@ -127,38 +83,20 @@ function DataGridInner<TRow>(
     onRangeCopy,
   } = props;
 
-  // Inject the synthetic __select__ column when row selection is enabled. The
-  // column object itself is module-scoped & stable; the array reference still
-  // changes whenever `dgColumns` does, so memo deps stay honest.
-  const augmentedDgColumns = useMemo<DataGridColumnDef<TRow>[]>(() => {
-    if (!allowRowSelection) return dgColumns;
-    return [SELECT_COLUMN as unknown as DataGridColumnDef<TRow>, ...dgColumns];
-  }, [allowRowSelection, dgColumns]);
+  const resolvedExtras = cellExtras ?? EMPTY_EXTRAS;
+  const virtualSpacerRef = useRef<HTMLDivElement | null>(null);
 
-  const tanstackColumns = useMemo(
-    () => toTanStackColumns(augmentedDgColumns),
-    [augmentedDgColumns],
-  );
+  const { columns: tanstackColumns, columnPinning: effectiveColumnPinning } =
+    useDataGridColumns({
+      columns: dgColumns,
+      columnPinning,
+      allowRowSelection,
+    });
 
   const pageCount = useMemo(() => {
     if (!pagination || pagination.pageSize <= 0) return -1;
     return Math.max(1, Math.ceil(rowCount / pagination.pageSize));
   }, [pagination, rowCount]);
-
-  // When `allowRowSelection` is on, force the __select__ column into the left
-  // pinned set so the table treats it as fixed-left even if the consumer
-  // didn't pre-seed `columnPinning.left`. We splice rather than override so
-  // user-provided pin order is preserved.
-  const effectiveColumnPinning = useMemo<TSTColumnPinning | undefined>(() => {
-    if (!allowRowSelection)
-      return columnPinning as TSTColumnPinning | undefined;
-    const left = columnPinning?.left ?? [];
-    const right = columnPinning?.right ?? [];
-    if (left.includes(SELECT_COLUMN_ID)) {
-      return { left, right };
-    }
-    return { left: [SELECT_COLUMN_ID, ...left], right };
-  }, [allowRowSelection, columnPinning]);
 
   const table = useReactTable<TRow>({
     data,
@@ -179,9 +117,7 @@ function DataGridInner<TRow>(
     onColumnVisibilityChange,
     onColumnOrderChange,
     onColumnSizingChange,
-    onColumnPinningChange: onColumnPinningChange as unknown as
-      | OnChangeFn<TSTColumnPinning>
-      | undefined,
+    onColumnPinningChange,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualSorting: true,
@@ -192,6 +128,7 @@ function DataGridInner<TRow>(
   });
 
   const visibleLeafColumns = table.getVisibleLeafColumns();
+
   const totalTableWidth = useMemo(
     () => visibleLeafColumns.reduce((acc, col) => acc + col.getSize(), 0),
     [visibleLeafColumns],
@@ -237,22 +174,6 @@ function DataGridInner<TRow>(
     }),
     [rowVirtualizer],
   );
-
-  // Dev-mode unbounded-height warning. Vite substitutes process.env.NODE_ENV
-  // at build time, so this branch compiles out of production bundles.
-  useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
-    const el = bodyRef.current;
-    if (!el) return;
-    if (el.clientHeight === el.scrollHeight && data.length > 50) {
-      console.warn(
-        "[DataGrid] The scroll container has unbounded height " +
-          "(clientHeight === scrollHeight) while rendering more than 50 rows. " +
-          "This usually means an ancestor has `height: auto` or a flex child " +
-          "is missing `min-height: 0`.",
-      );
-    }
-  }, [data.length]);
 
   const featureFlags = useMemo<DataGridFeatureFlags>(
     () => ({
@@ -340,32 +261,23 @@ function DataGridInner<TRow>(
   });
 
   // Range visibility-change reconciliation: if the active range covers a
-  // column that just became hidden, clear the range. Done in DataGrid (not
-  // the hook) because visibility is a column-config concern the hook doesn't
-  // see directly.
+  // column that just became hidden, clear the range. Lives here (not in the
+  // hook) because visibility is a column-config concern useDataGrid doesn't
+  // see directly. The decision predicate is a pure helper; the effect only
+  // bridges prev/next visualColumnIds and dispatches the clear.
   const lastVisualIdsRef = useRef(visualColumnIds);
   useEffect(() => {
     const prev = lastVisualIdsRef.current;
     lastVisualIdsRef.current = visualColumnIds;
-    if (!cellRangeSelection || !onCellRangeSelectionChange) return;
-    const stillPresent = (id: string) => visualColumnIds.includes(id);
+    if (!onCellRangeSelectionChange) return;
     if (
-      !stillPresent(cellRangeSelection.anchor.columnId) ||
-      !stillPresent(cellRangeSelection.focus.columnId)
+      shouldClearRangeForVisibilityChange(
+        prev,
+        visualColumnIds,
+        cellRangeSelection ?? null,
+      )
     ) {
       (onCellRangeSelectionChange as (n: null) => void)(null);
-      return;
-    }
-    // Also clear if a column inside the rectangle was removed.
-    const aIdx = prev.indexOf(cellRangeSelection.anchor.columnId);
-    const fIdx = prev.indexOf(cellRangeSelection.focus.columnId);
-    if (aIdx < 0 || fIdx < 0) return;
-    const rangeIds = prev.slice(Math.min(aIdx, fIdx), Math.max(aIdx, fIdx) + 1);
-    for (const id of rangeIds) {
-      if (!stillPresent(id)) {
-        (onCellRangeSelectionChange as (n: null) => void)(null);
-        return;
-      }
     }
   }, [visualColumnIds, cellRangeSelection, onCellRangeSelectionChange]);
 
@@ -378,15 +290,20 @@ function DataGridInner<TRow>(
     [range.onCellMouseDown, range.onCellMouseEnter, range.onCellContextMenu],
   );
 
-  const resolvedExtras = cellExtras ?? EMPTY_EXTRAS;
-  const contextValue = useMemo<DataGridContextValue>(
+  const actionsValue = useMemo<DataGridActionsValue>(
     () => ({
-      cellExtras: resolvedExtras,
-      featureFlags,
       cellMouseHandlers,
       toggleRow: rowSel.toggleRow,
     }),
-    [resolvedExtras, featureFlags, cellMouseHandlers, rowSel.toggleRow],
+    [cellMouseHandlers, rowSel.toggleRow],
+  );
+
+  const configValue = useMemo<DataGridConfigValue>(
+    () => ({
+      cellExtras: resolvedExtras,
+      featureFlags,
+    }),
+    [resolvedExtras, featureFlags],
   );
 
   const headerSelectionValue = useMemo(
@@ -397,79 +314,89 @@ function DataGridInner<TRow>(
     [rowSel.headerState, rowSel.toggleAll],
   );
 
-  const virtualSpacerRef = useRef<HTMLDivElement | null>(null);
-
   const headerGroups = table.getHeaderGroups();
   const rowModel = table.getRowModel();
 
   const showSkeleton = isLoading && data.length === 0;
   const showEmptyState = !isLoading && data.length === 0;
-  const showRefetchBar = isLoading && data.length > 0;
+
+  // Dev-mode unbounded-height warning. Vite substitutes process.env.NODE_ENV
+  // at build time, so this branch compiles out of production bundles.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const el = bodyRef.current;
+    if (!el) return;
+    if (el.clientHeight === el.scrollHeight && data.length > 50) {
+      console.warn(
+        "[DataGrid] The scroll container has unbounded height " +
+          "(clientHeight === scrollHeight) while rendering more than 50 rows. " +
+          "This usually means an ancestor has `height: auto` or a flex child " +
+          "is missing `min-height: 0`.",
+      );
+    }
+  }, [data.length]);
 
   return (
-    <DataGridContext.Provider value={contextValue}>
-      <HeaderSelectionContext.Provider value={headerSelectionValue}>
-        <div className={clsx(styles.root, className)}>
-          {showRefetchBar && <div className={styles.refetchBar} />}
-          <div
-            ref={bodyRef}
-            className={styles.scrollContainer}
-            tabIndex={0}
-            onKeyDown={range.onBodyKeyDown}
-          >
-            <OverlayColumnShadow
-              visibleLeafColumns={visibleLeafColumns}
-              scrollContainerRef={bodyRef}
-              virtualSpacerRef={virtualSpacerRef}
-            />
-            {headerGroups.map((hg) => (
-              <HeaderRow
-                key={hg.id}
-                headers={hg.headers}
-                height={headerHeight}
-                totalWidth={totalTableWidth}
-              />
-            ))}
+    <DataGridConfigContext.Provider value={configValue}>
+      <DataGridActionsContext.Provider value={actionsValue}>
+        <HeaderSelectionContext.Provider value={headerSelectionValue}>
+          <div className={clsx(styles.root, className)}>
             <div
-              ref={virtualSpacerRef}
-              className={styles.virtualSpacer}
-              style={{
-                height: data.length === 0 ? "100%" : `${totalSize}px`,
-                width: `${totalTableWidth}px`,
-                minWidth: `${totalTableWidth}px`,
-              }}
+              ref={bodyRef}
+              className={styles.scrollContainer}
+              tabIndex={0}
+              onKeyDown={range.onBodyKeyDown}
             >
-              {!showSkeleton &&
-                virtualRows.map((vr) => {
-                  const row = rowModel.rows[vr.index];
-                  if (!row) return null;
-                  return (
-                    <BodyRow
-                      key={row.id}
-                      row={row}
-                      top={vr.start}
-                      height={rowHeight}
-                      totalWidth={totalTableWidth}
-                      cellRangeSelection={cellRangeSelection ?? null}
-                      visualColumnIds={visualColumnIds}
-                    />
-                  );
-                })}
-              {showEmptyState && (
-                <div className={styles.emptyState}>
-                  {emptyState ?? "No results"}
-                </div>
-              )}
+              <OverlayColumnShadow
+                visibleLeafColumns={visibleLeafColumns}
+                scrollContainerRef={bodyRef}
+                virtualSpacerRef={virtualSpacerRef}
+              />
+              {headerGroups.map((hg) => (
+                <HeaderRow
+                  key={hg.id}
+                  headers={hg.headers}
+                  height={headerHeight}
+                  totalWidth={totalTableWidth}
+                />
+              ))}
+              <div
+                ref={virtualSpacerRef}
+                className={styles.virtualSpacer}
+                style={{
+                  height: data.length === 0 ? "100%" : `${totalSize}px`,
+                  width: `${totalTableWidth}px`,
+                  minWidth: `${totalTableWidth}px`,
+                }}
+              >
+                {!showSkeleton &&
+                  virtualRows.map((vr) => {
+                    const row = rowModel.rows[vr.index];
+                    if (!row) return null;
+                    return (
+                      <BodyRow
+                        key={row.id}
+                        row={row}
+                        top={vr.start}
+                        height={rowHeight}
+                        totalWidth={totalTableWidth}
+                        cellRangeSelection={cellRangeSelection ?? null}
+                        visualColumnIds={visualColumnIds}
+                      />
+                    );
+                  })}
+                {showEmptyState && (
+                  <div className={styles.emptyState}>
+                    {emptyState ?? "No results"}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </HeaderSelectionContext.Provider>
-    </DataGridContext.Provider>
+        </HeaderSelectionContext.Provider>
+      </DataGridActionsContext.Provider>
+    </DataGridConfigContext.Provider>
   );
 }
-
-type DataGridComponent = <TRow>(
-  props: DataGridProps<TRow> & { ref?: ForwardedRef<DataGridHandle> },
-) => ReactElement;
 
 export const DataGrid = forwardRef(DataGridInner) as DataGridComponent;

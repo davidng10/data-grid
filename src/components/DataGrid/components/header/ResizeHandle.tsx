@@ -3,7 +3,7 @@ import clsx from "clsx";
 import type { Header } from "@tanstack/react-table";
 import type { MouseEvent, TouchEvent } from "react";
 
-import styles from "../DataGrid.module.css";
+import styles from "../../DataGrid.module.css";
 
 type ResizeHandleProps<TRow> = {
   header: Header<TRow, unknown>;

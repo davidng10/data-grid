@@ -1,4 +1,4 @@
-import { createContext } from "react";
+import { createContext, useContext } from "react";
 
 import type { RowSelectionHeaderState } from "./useRowSelection";
 
@@ -13,3 +13,7 @@ export type HeaderSelectionContextValue = {
 
 export const HeaderSelectionContext =
   createContext<HeaderSelectionContextValue | null>(null);
+
+export function useHeaderSelectionContext(): HeaderSelectionContextValue | null {
+  return useContext(HeaderSelectionContext);
+}

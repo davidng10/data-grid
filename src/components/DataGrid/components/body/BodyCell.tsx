@@ -7,11 +7,14 @@ import type {
   DataGridCellAlign,
   DataGridCellProps,
   DataGridColumnDef,
-} from "../DataGrid.types";
+} from "../../types";
 
+import {
+  useDataGridActions,
+  useDataGridConfig,
+} from "../../hooks/useDataGridContext";
 import { TextCell } from "../cells/TextCell";
-import { useDataGridContext } from "../useDataGridContext";
-import styles from "../DataGrid.module.css";
+import styles from "../../DataGrid.module.css";
 
 type BodyCellProps<TRow> = {
   cell: Cell<TRow, unknown>;
@@ -46,7 +49,8 @@ function BodyCellRender<TRow>({
   isSelected,
   wireRangeHandlers,
 }: BodyCellProps<TRow>) {
-  const { cellExtras, cellMouseHandlers } = useDataGridContext();
+  const { cellExtras } = useDataGridConfig();
+  const { cellMouseHandlers } = useDataGridActions();
 
   const meta = cell.column.columnDef.meta as
     | { dataGridColumn?: DataGridColumnDef<TRow> }
@@ -64,11 +68,11 @@ function BodyCellRender<TRow>({
         ? { right: `${pinRight}px` }
         : {};
 
-  const cellProps: DataGridCellProps<unknown, unknown> = {
+  const cellProps: DataGridCellProps<TRow, unknown> = {
     row,
     rowId,
     rowIndex,
-    column: dgColumn as unknown as DataGridColumnDef<unknown, unknown>,
+    column: dgColumn satisfies DataGridColumnDef<TRow, unknown>,
     value,
     align,
     isEditing: false,

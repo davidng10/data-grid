@@ -1,4 +1,4 @@
-import type { CellRange, DataGridColumnDef } from "../DataGrid.types";
+import type { CellRange, DataGridColumnDef } from "../types";
 
 // Replace any embedded tab / CR / LF with a single space so the TSV stays
 // parseable in Excel / Google Sheets (those characters are TSV delimiters

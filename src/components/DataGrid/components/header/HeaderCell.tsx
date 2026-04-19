@@ -2,10 +2,6 @@ import { memo } from "react";
 import { flexRender } from "@tanstack/react-table";
 import clsx from "clsx";
 
-import { useDataGridContext } from "..//useDataGridContext";
-import { HeaderMenu } from "./HeaderMenu";
-import { ResizeHandle } from "./ResizeHandle";
-
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import type { Header } from "@tanstack/react-table";
@@ -14,9 +10,12 @@ import type {
   MouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import type { DataGridColumnDef } from "../DataGrid.types";
+import type { DataGridColumnDef } from "../../types";
 
-import styles from "../DataGrid.module.css";
+import { useDataGridConfig } from "../../hooks/useDataGridContext";
+import { HeaderMenu } from "./HeaderMenu";
+import { ResizeHandle } from "./ResizeHandle";
+import styles from "../../DataGrid.module.css";
 
 type SortDir = false | "asc" | "desc";
 
@@ -59,7 +58,7 @@ function HeaderCellRender<TRow>({
   dragIsDragging,
   dragDisabled,
 }: HeaderCellProps<TRow>) {
-  const { featureFlags } = useDataGridContext();
+  const { featureFlags } = useDataGridConfig();
   const pinStyle: CSSProperties =
     pinned === "left"
       ? { left: `${pinLeft}px` }

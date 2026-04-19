@@ -1,10 +1,9 @@
-import { useDataGridContext } from "../useDataGridContext";
-import { ColumnReorderContext } from "./ColumnReorderContext";
-import { HeaderCell } from "./HeaderCell";
-
 import type { Header } from "@tanstack/react-table";
 
-import styles from "../DataGrid.module.css";
+import { useDataGridConfig } from "../../hooks/useDataGridContext";
+import { ColumnReorderContext } from "./ColumnReorderContext";
+import { HeaderCell } from "./HeaderCell";
+import styles from "../../DataGrid.module.css";
 
 type HeaderRowProps<TRow> = {
   headers: Header<TRow, unknown>[];
@@ -22,7 +21,7 @@ export function HeaderRow<TRow>({
   height,
   totalWidth,
 }: HeaderRowProps<TRow>) {
-  const { featureFlags } = useDataGridContext();
+  const { featureFlags } = useDataGridConfig();
 
   if (featureFlags.reorder && headers.length > 0) {
     return (

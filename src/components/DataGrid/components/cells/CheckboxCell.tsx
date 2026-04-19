@@ -1,14 +1,13 @@
 import { memo } from "react";
 
-import { useDataGridContext } from "../useDataGridContext";
-
 import type { MouseEvent } from "react";
-import type { DataGridCellProps } from "../DataGrid.types";
+import type { DataGridCellProps } from "../../types";
 
-import styles from "../DataGrid.module.css";
+import { useDataGridActions } from "../../hooks/useDataGridContext";
+import styles from "../../DataGrid.module.css";
 
-function CheckboxCellRender(props: DataGridCellProps<unknown, unknown>) {
-  const { toggleRow } = useDataGridContext();
+function CheckboxCellRender<TRow>(props: DataGridCellProps<TRow, unknown>) {
+  const { toggleRow } = useDataGridActions();
 
   // Click rather than change so we can read shiftKey for range select.
   const onClick = (e: MouseEvent<HTMLInputElement>) => {

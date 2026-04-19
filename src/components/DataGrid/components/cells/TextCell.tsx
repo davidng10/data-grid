@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import type { DataGridCellProps } from "../DataGrid.types";
+import type { DataGridCellProps } from "../../types";
 
-import styles from "../DataGrid.module.css";
+import styles from "../../DataGrid.module.css";
 
 export function TextCell<TRow, TValue>(
   props: DataGridCellProps<TRow, TValue>,

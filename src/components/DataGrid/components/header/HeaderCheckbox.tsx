@@ -1,10 +1,9 @@
 import { useEffect, useRef } from "react";
 
-import { useHeaderSelectionContext } from "../selection/useHeaderSelectionContext";
-
 import type { MouseEvent } from "react";
 
-import styles from "../DataGrid.module.css";
+import { useHeaderSelectionContext } from "../../hooks/useHeaderSelectionContext";
+import styles from "../../DataGrid.module.css";
 
 // Header checkbox for the injected __select__ column. Tri-state — the
 // `indeterminate` DOM property (not an HTML attr) reflects "some but not all

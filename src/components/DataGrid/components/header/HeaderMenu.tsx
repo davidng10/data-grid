@@ -1,14 +1,13 @@
 import { memo, useRef, useState } from "react";
 
-import { DropdownMenu } from "../DropdownMenu";
-import { useDataGridContext } from "../useDataGridContext";
-
 import type { Header, Table } from "@tanstack/react-table";
 import type { MouseEvent } from "react";
-import type { ColumnPinningState, DataGridColumnDef } from "../DataGrid.types";
-import type { DropdownMenuItem } from "../DropdownMenu";
+import type { DropdownMenuItem } from "../../DropdownMenu";
+import type { ColumnPinningState, DataGridColumnDef } from "../../types";
 
-import styles from "../DataGrid.module.css";
+import { DropdownMenu } from "../../DropdownMenu";
+import { useDataGridConfig } from "../../hooks/useDataGridContext";
+import styles from "../../DataGrid.module.css";
 
 type HeaderMenuProps<TRow> = {
   header: Header<TRow, unknown>;
@@ -103,7 +102,7 @@ function moveWithinZone<TRow>(
 }
 
 function HeaderMenuRender<TRow>({ header }: HeaderMenuProps<TRow>) {
-  const { featureFlags } = useDataGridContext();
+  const { featureFlags } = useDataGridConfig();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
 

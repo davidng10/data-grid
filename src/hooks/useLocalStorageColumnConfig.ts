@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ColumnConfigState,
   ColumnPinningState,
-} from "../components/DataGrid/DataGrid.types";
+} from "../components/DataGrid";
 
 export type UseLocalStorageColumnConfigOptions = {
   maxVisibleColumns?: number;

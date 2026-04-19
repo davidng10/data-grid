@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 
+import { isPointInRange } from "../utils/rangeSelection";
+
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
@@ -17,7 +19,7 @@ import type {
   CellRangeSelection,
   DataGridColumnDef,
   RangeCopyContext,
-} from "../DataGrid.types";
+} from "../types";
 
 type FocusedCell = { rowIndex: number; columnId: string } | null;
 
@@ -431,24 +433,6 @@ function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
-function isPointInRange(
-  rowIndex: number,
-  columnId: string,
-  range: CellRangeSelection,
-  visualIds: string[],
-): boolean {
-  const rMin = Math.min(range.anchor.rowIndex, range.focus.rowIndex);
-  const rMax = Math.max(range.anchor.rowIndex, range.focus.rowIndex);
-  if (rowIndex < rMin || rowIndex > rMax) return false;
-  const aIdx = visualIds.indexOf(range.anchor.columnId);
-  const fIdx = visualIds.indexOf(range.focus.columnId);
-  const cIdx = visualIds.indexOf(columnId);
-  if (aIdx < 0 || fIdx < 0 || cIdx < 0) return false;
-  const cMin = Math.min(aIdx, fIdx);
-  const cMax = Math.max(aIdx, fIdx);
-  return cIdx >= cMin && cIdx <= cMax;
-}
-
 function sliceColumns<TRow>(
   visibleColumns: DataGridColumnDef<TRow>[],
   visualIds: string[],
@@ -464,14 +448,4 @@ function sliceColumns<TRow>(
   return sliceIds
     .map((id) => byId.get(id))
     .filter((c): c is DataGridColumnDef<TRow> => c !== undefined);
-}
-
-export function isCellInRange(
-  rowIndex: number,
-  columnId: string,
-  range: CellRangeSelection | null,
-  visualIds: string[],
-): boolean {
-  if (!range) return false;
-  return isPointInRange(rowIndex, columnId, range, visualIds);
 }

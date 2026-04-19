@@ -13,6 +13,7 @@ A generic, virtualized, fully-controlled data grid component for React + TypeScr
 ```tsx
 import { DataGrid, TextCell, useDataGrid } from "@/components/DataGrid";
 import { useLocalStorageColumnConfig } from "@/hooks/useLocalStorageColumnConfig";
+
 import type { DataGridColumnDef, DataGridView } from "@/components/DataGrid";
 
 type Row = { id: string; name: string; price: number; createdAt: string };

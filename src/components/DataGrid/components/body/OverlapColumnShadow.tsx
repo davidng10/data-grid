@@ -4,7 +4,7 @@ import clsx from "clsx";
 import type { Column } from "@tanstack/react-table";
 import type { RefObject } from "react";
 
-import styles from "../DataGrid.module.css";
+import styles from "../../DataGrid.module.css";
 
 interface OverlayColumnShadowProps<TRow> {
   visibleLeafColumns: Column<TRow, unknown>[];

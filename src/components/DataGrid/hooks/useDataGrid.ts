@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+
+import { useDataGridTransitions } from "./useDataGridTransitions";
 
 import type { OnChangeFn } from "@tanstack/react-table";
 import type {
-  ActiveEditorState,
   CellRangeSelection,
   ColumnConfigState,
   ColumnPinningState,
@@ -10,7 +11,7 @@ import type {
   DataGridView,
   PaginationState,
   SortingState,
-} from "./DataGrid.types";
+} from "../types";
 
 type Updater<T> = T | ((old: T) => T);
 
@@ -43,7 +44,6 @@ export type UseDataGridOptions<TFilters> = {
   allowRowSelection?: boolean;
   allowRangeSelection?: boolean;
   allowInlineEdit?: boolean;
-
 };
 
 export type UseDataGridResult<TRow, TFilters> = {
@@ -88,45 +88,44 @@ export function useDataGrid<TRow, TFilters>(
     allowInlineEdit = false,
   } = options;
 
-  const [cellRangeSelection, setCellRangeSelection] =
-  useState<CellRangeSelection | null>(null);
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-  const [activeEditor, setActiveEditor] = useState<ActiveEditorState>(null);
+  // Transient state owned end-to-end by the grid (rowSelection, cellRange,
+  // activeEditor) + the transition rules (what clears on what) live in this
+  // reducer. The README transition table maps 1:1 to the action cases.
+  const { state: transitions, actions: tx } = useDataGridTransitions();
+  const { rowSelection, cellRangeSelection, activeEditor } = transitions;
 
-  // --- Semantic setters: transition rules encoded here ---
+  // --- Semantic setters: view mutation + reducer dispatch ---
 
   const setPage = useCallback(
     (pageIndex: number) => {
       onViewChange({ ...view, pageIndex });
-      setCellRangeSelection(null);
+      tx.pageChanged();
     },
-    [view, onViewChange],
+    [view, onViewChange, tx],
   );
 
   const setPageSize = useCallback(
     (pageSize: number) => {
       onViewChange({ ...view, pageSize, pageIndex: 0 });
-      setCellRangeSelection(null);
+      tx.pageChanged();
     },
-    [view, onViewChange],
+    [view, onViewChange, tx],
   );
 
   const setSort = useCallback(
     (sorting: SortingState) => {
       onViewChange({ ...view, sorting, pageIndex: 0 });
-      setRowSelection({});
-      setCellRangeSelection(null);
+      tx.sortChanged();
     },
-    [view, onViewChange],
+    [view, onViewChange, tx],
   );
 
   const setFilters = useCallback(
     (filters: TFilters) => {
       onViewChange({ ...view, filters, pageIndex: 0 });
-      setRowSelection({});
-      setCellRangeSelection(null);
+      tx.filtersChanged();
     },
-    [view, onViewChange],
+    [view, onViewChange, tx],
   );
 
   // --- TanStack OnChangeFn adapters: resolve updater, then delegate ---
@@ -187,7 +186,9 @@ export function useDataGrid<TRow, TFilters>(
       const fixed = fixedPositionColumnIds ?? [];
       for (const id of fixed) {
         if (columnConfig.columnOrder.indexOf(id) !== next.indexOf(id)) {
-          console.warn(`Column "${id}" is fixed-position and cannot be reordered`);
+          console.warn(
+            `Column "${id}" is fixed-position and cannot be reordered`,
+          );
           return;
         }
       }
@@ -196,41 +197,39 @@ export function useDataGrid<TRow, TFilters>(
     [columnConfig, fixedPositionColumnIds, onColumnConfigChange],
   );
 
-  const onColumnSizingChange: OnChangeFn<Record<string, number>> =
-    useCallback(
-      (updater) => {
-        const next = resolveUpdater(updater, columnConfig.columnSizing);
-        onColumnConfigChange({ ...columnConfig, columnSizing: next });
-      },
-      [columnConfig, onColumnConfigChange],
-    );
+  const onColumnSizingChange: OnChangeFn<Record<string, number>> = useCallback(
+    (updater) => {
+      const next = resolveUpdater(updater, columnConfig.columnSizing);
+      onColumnConfigChange({ ...columnConfig, columnSizing: next });
+    },
+    [columnConfig, onColumnConfigChange],
+  );
 
-  const onColumnPinningChange: OnChangeFn<ColumnPinningState> =
-    useCallback(
-      (updater) => {
-        const next = resolveUpdater(updater, columnConfig.columnPinning);
-        const leftFixed = fixedPinnedLeft ?? [];
-        const rightFixed = fixedPinnedRight ?? [];
+  const onColumnPinningChange: OnChangeFn<ColumnPinningState> = useCallback(
+    (updater) => {
+      const next = resolveUpdater(updater, columnConfig.columnPinning);
+      const leftFixed = fixedPinnedLeft ?? [];
+      const rightFixed = fixedPinnedRight ?? [];
 
-        // Drop any fixed-pinned ids from their non-canonical side
-        let left = next.left.filter((id) => !rightFixed.includes(id));
-        let right = next.right.filter((id) => !leftFixed.includes(id));
+      // Drop any fixed-pinned ids from their non-canonical side
+      let left = next.left.filter((id) => !rightFixed.includes(id));
+      let right = next.right.filter((id) => !leftFixed.includes(id));
 
-        // Force fixed-pinned ids into canonical position if absent
-        for (const id of leftFixed) {
-          if (!left.includes(id)) left = [id, ...left];
-        }
-        for (const id of rightFixed) {
-          if (!right.includes(id)) right = [...right, id];
-        }
+      // Force fixed-pinned ids into canonical position if absent
+      for (const id of leftFixed) {
+        if (!left.includes(id)) left = [id, ...left];
+      }
+      for (const id of rightFixed) {
+        if (!right.includes(id)) right = [...right, id];
+      }
 
-        onColumnConfigChange({
-          ...columnConfig,
-          columnPinning: { left, right },
-        });
-      },
-      [columnConfig, fixedPinnedLeft, fixedPinnedRight, onColumnConfigChange],
-    );
+      onColumnConfigChange({
+        ...columnConfig,
+        columnPinning: { left, right },
+      });
+    },
+    [columnConfig, fixedPinnedLeft, fixedPinnedRight, onColumnConfigChange],
+  );
 
   const pagination = useMemo<PaginationState>(
     () => ({ pageIndex: view.pageIndex, pageSize: view.pageSize }),
@@ -248,10 +247,10 @@ export function useDataGrid<TRow, TFilters>(
       onPaginationChange,
 
       rowSelection,
-      onRowSelectionChange: setRowSelection,
+      onRowSelectionChange: tx.setRowSelection,
 
       cellRangeSelection,
-      onCellRangeSelectionChange: setCellRangeSelection,
+      onCellRangeSelectionChange: tx.setCellRangeSelection,
 
       columnVisibility: columnConfig.columnVisibility,
       onColumnVisibilityChange,
@@ -266,7 +265,7 @@ export function useDataGrid<TRow, TFilters>(
       onColumnPinningChange,
 
       activeEditor,
-      onActiveEditorChange: setActiveEditor,
+      onActiveEditorChange: tx.setActiveEditor,
 
       allowSorting,
       allowPinning,
@@ -283,11 +282,11 @@ export function useDataGrid<TRow, TFilters>(
       pagination,
       rowSelection,
       cellRangeSelection,
+      activeEditor,
       columnConfig.columnVisibility,
       columnConfig.columnOrder,
       columnConfig.columnSizing,
       columnConfig.columnPinning,
-      activeEditor,
       allowSorting,
       allowPinning,
       allowReorder,
@@ -296,6 +295,9 @@ export function useDataGrid<TRow, TFilters>(
       allowRowSelection,
       allowRangeSelection,
       allowInlineEdit,
+      // tx setters are stable (useCallback over stable dispatch) — depend on
+      // the bundle identity rather than each setter individually.
+      tx,
       onSortingChange,
       onPaginationChange,
       onColumnVisibilityChange,
@@ -310,17 +312,17 @@ export function useDataGrid<TRow, TFilters>(
       rowIds: Object.entries(rowSelection)
         .filter(([, v]) => v)
         .map(([k]) => k),
-      clear: () => setRowSelection({}),
+      clear: () => tx.setRowSelection({}),
     }),
-    [rowSelection],
+    [rowSelection, tx],
   );
 
   const rangeSelectionResult = useMemo(
     () => ({
       current: cellRangeSelection,
-      clear: () => setCellRangeSelection(null),
+      clear: () => tx.setCellRangeSelection(null),
     }),
-    [cellRangeSelection],
+    [cellRangeSelection, tx],
   );
 
   return {

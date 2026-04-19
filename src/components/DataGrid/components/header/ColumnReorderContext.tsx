@@ -15,9 +15,9 @@ import { SortableHeaderCell } from "./SortableHeaderCell";
 
 import type { CollisionDetection, DragEndEvent } from "@dnd-kit/core";
 import type { Header, Table } from "@tanstack/react-table";
-import type { ColumnPinningState, DataGridColumnDef } from "../DataGrid.types";
+import type { ColumnPinningState, DataGridColumnDef } from "../../types";
 
-import styles from "../DataGrid.module.css";
+import styles from "../../DataGrid.module.css";
 
 type Props<TRow> = {
   headers: Header<TRow, unknown>[];
