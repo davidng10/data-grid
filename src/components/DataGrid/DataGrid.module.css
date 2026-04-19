@@ -289,36 +289,6 @@
   background: rgba(37, 99, 235, 0.05);
 }
 
-/* ----- Refetch bar ----- */
-
-@keyframes dgRefetchBar {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-.refetchBar {
-  position: relative;
-  height: 2px;
-  flex-shrink: 0;
-  background: rgba(37, 99, 235, 0.2);
-  overflow: hidden;
-}
-
-.refetchBar::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 30%;
-  background: rgba(37, 99, 235, 0.9);
-  animation: dgRefetchBar 1.2s linear infinite;
-}
-
 /* ----- Sticky scroll shadows ----- */
 
 /* A 0×0 sticky anchor pinned at the scroll container's viewport top-left.
