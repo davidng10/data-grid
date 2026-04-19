@@ -7,26 +7,33 @@ A generic, virtualized, fully-controlled data grid component for React + TypeScr
 ## Quick start
 
 ```tsx
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import {
-  DataGrid,
-  TextCell,
-  defaultRangeToTSV,
-  type DataGridColumnDef,
-  type DataGridView,
-} from '@/components/DataGrid'
-import { useDataGrid } from '@/hooks/useDataGrid'
-import { useLocalStorageColumnConfig } from '@/hooks/useLocalStorageColumnConfig'
+import { useState } from "react";
+import { DataGrid, TextCell, defaultRangeToTSV } from "@/components/DataGrid";
+import { useDataGrid } from "@/hooks/useDataGrid";
+import { useLocalStorageColumnConfig } from "@/hooks/useLocalStorageColumnConfig";
+import { useQuery } from "@tanstack/react-query";
 
-type Row = { id: string; name: string; price: number; createdAt: string }
+import type { DataGridColumnDef, DataGridView } from "@/components/DataGrid";
+
+type Row = { id: string; name: string; price: number; createdAt: string };
 
 const columns: DataGridColumnDef<Row>[] = [
-  { id: 'id',        header: 'ID',      accessor: (r) => r.id,        cell: TextCell },
-  { id: 'name',      header: 'Name',    accessor: (r) => r.name,      cell: TextCell },
-  { id: 'price',     header: 'Price',   accessor: (r) => r.price,     cell: TextCell, align: 'right' },
-  { id: 'createdAt', header: 'Created', accessor: (r) => r.createdAt, cell: TextCell },
-]
+  { id: "id", header: "ID", accessor: (r) => r.id, cell: TextCell },
+  { id: "name", header: "Name", accessor: (r) => r.name, cell: TextCell },
+  {
+    id: "price",
+    header: "Price",
+    accessor: (r) => r.price,
+    cell: TextCell,
+    align: "right",
+  },
+  {
+    id: "createdAt",
+    header: "Created",
+    accessor: (r) => r.createdAt,
+    cell: TextCell,
+  },
+];
 
 function MyPage() {
   const [view, setView] = useState<DataGridView<object>>({
@@ -34,13 +41,14 @@ function MyPage() {
     pageSize: 50,
     sorting: [],
     filters: {},
-  })
-  const [columnConfig, setColumnConfig] = useLocalStorageColumnConfig('my-grid-v1')
+  });
+  const [columnConfig, setColumnConfig] =
+    useLocalStorageColumnConfig("my-grid-v1");
 
   const { data, isLoading } = useQuery({
-    queryKey: ['rows', view],
+    queryKey: ["rows", view],
     queryFn: () => fetchRows(view),
-  })
+  });
 
   const grid = useDataGrid<Row, object>({
     view,
@@ -48,10 +56,16 @@ function MyPage() {
     columnConfig,
     onColumnConfigChange: setColumnConfig,
     rowCount: data?.total ?? 0,
-  })
+  });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+      }}
+    >
       <TopBar style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minHeight: 0 }}>
         <DataGrid
@@ -67,7 +81,7 @@ function MyPage() {
         />
       </div>
     </div>
-  )
+  );
 }
 ```
 
@@ -91,7 +105,7 @@ It **cannot** be `height: auto` at the scroll owner or anywhere between it and t
 
 ### `100vh` vs `height: 100%` — use both, at different levels
 
-`100vh` and `height: 100%` are not alternatives. `100vh` is the terminating anchor *somewhere* up the tree (usually at the app shell's outermost container). `height: 100%` is the propagation mechanism below it. Between them can be any amount of flex math.
+`100vh` and `height: 100%` are not alternatives. `100vh` is the terminating anchor _somewhere_ up the tree (usually at the app shell's outermost container). `height: 100%` is the propagation mechanism below it. Between them can be any amount of flex math.
 
 ```tsx
 <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>  {/* ← bound anchored here */}
@@ -150,7 +164,7 @@ Somewhere in the chain, `height: auto` sneaks in — an unstyled wrapper `<div>`
 
 ### 3. Missing `flexShrink: 0` on siblings above the grid
 
-In the canonical pattern, every sibling of the grid's parent (TopBar, PageTitle, ExpandableFilter) needs `flexShrink: 0`. Without it, when the grid wants more space, the flex algorithm will *compress* your header / filter to make room, causing visible jitter and weird partial-collapse.
+In the canonical pattern, every sibling of the grid's parent (TopBar, PageTitle, ExpandableFilter) needs `flexShrink: 0`. Without it, when the grid wants more space, the flex algorithm will _compress_ your header / filter to make room, causing visible jitter and weird partial-collapse.
 
 **Fix:** `flexShrink: 0` on anything above the grid that should be sized by content and never squeezed. The grid's parent is the only thing that should flex.
 
@@ -189,7 +203,7 @@ Handles virtualization, layout, pinned columns, cell rendering, selection intera
 
 ### `useDataGrid` is the state layer
 
-Owns transition rules (sort/filter → reset page + clear row selection; all view changes → clear cell range), transient state (row/range selection, active editor *(phase 2 — not yet implemented)*), and assembles `gridProps` for you. You provide `view` + `columnConfig` as controlled state; the hook calls your change handlers.
+Owns transition rules (sort/filter → reset page + clear row selection; all view changes → clear cell range), transient state (row/range selection, active editor _(phase 2 — not yet implemented)_), and assembles `gridProps` for you. You provide `view` + `columnConfig` as controlled state; the hook calls your change handlers.
 
 ### `useLocalStorageColumnConfig` is the only shipped persistence helper
 
@@ -199,27 +213,27 @@ Persists column visibility/order/sizing/pinning to localStorage under a key you 
 
 Passed via `useDataGrid` options, propagated to `<DataGrid />`:
 
-| Flag | Default | When false |
-|---|---|---|
-| `allowSorting` | true | Header clicks don't sort. |
-| `allowPinning` | true | No pin/unpin in header menu. Column-def `fixedPin` still honored. |
-| `allowReorder` | true | No drag; no "move" in header menu. |
-| `allowResize` | true | No resize handles. |
-| `allowColumnVisibility` | true | "Hide" not offered in header menu. |
-| `allowRowSelection` | true | No pinned-left checkbox column. |
-| `allowRangeSelection` | true | Mouse drag doesn't start a range. |
-| `allowInlineEdit` | **false** | Cells never enter edit mode. *(Phase 2 — not yet implemented; flipping the flag does nothing today.)* |
+| Flag                    | Default   | When false                                                                                            |
+| ----------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
+| `allowSorting`          | true      | Header clicks don't sort.                                                                             |
+| `allowPinning`          | true      | No pin/unpin in header menu. Column-def `fixedPin` still honored.                                     |
+| `allowReorder`          | true      | No drag; no "move" in header menu.                                                                    |
+| `allowResize`           | true      | No resize handles.                                                                                    |
+| `allowColumnVisibility` | true      | "Hide" not offered in header menu.                                                                    |
+| `allowRowSelection`     | true      | No pinned-left checkbox column.                                                                       |
+| `allowRangeSelection`   | true      | Mouse drag doesn't start a range.                                                                     |
+| `allowInlineEdit`       | **false** | Cells never enter edit mode. _(Phase 2 — not yet implemented; flipping the flag does nothing today.)_ |
 
 ## Transition rules (live in `useDataGrid`)
 
-| Event | pageIndex | rowSelection | cellRangeSelection |
-|---|---|---|---|
-| `grid.setPage(i)` | → i | preserved | cleared |
-| `grid.setPageSize(n)` | → 0 | preserved | cleared |
-| `grid.setSort(s)` | → 0 | **cleared** | cleared |
-| `grid.setFilters(f)` | → 0 | **cleared** | cleared |
-| column visibility change | unchanged | preserved | cleared if range spans a hidden column |
-| column reorder / resize / pin | unchanged | preserved | preserved |
+| Event                         | pageIndex | rowSelection | cellRangeSelection                     |
+| ----------------------------- | --------- | ------------ | -------------------------------------- |
+| `grid.setPage(i)`             | → i       | preserved    | cleared                                |
+| `grid.setPageSize(n)`         | → 0       | preserved    | cleared                                |
+| `grid.setSort(s)`             | → 0       | **cleared**  | cleared                                |
+| `grid.setFilters(f)`          | → 0       | **cleared**  | cleared                                |
+| column visibility change      | unchanged | preserved    | cleared if range spans a hidden column |
+| column reorder / resize / pin | unchanged | preserved    | preserved                              |
 
 Non-negotiable inside the hook. If your page needs different semantics, wrap the hook.
 
@@ -238,7 +252,7 @@ If you omit `cell`, the grid falls back to `TextCell` which renders `String(valu
 Phase 1 ships:
 
 ```ts
-import { TextCell, CheckboxCell } from '@/components/DataGrid'
+import { CheckboxCell, TextCell } from "@/components/DataGrid";
 ```
 
 - `TextCell` — display-only, uses `String(value ?? '')`, respects `align`. Doubles as the implicit fallback when `column.cell` is unset; there is no separate `DefaultCell`.
@@ -290,13 +304,13 @@ When `allowRangeSelection` is true, dragging across cells builds a rectangular s
 The grid does **not** ship a built-in clipboard default. Ctrl+C inside the grid is a no-op unless you provide `onRangeCopy`:
 
 ```tsx
-import { defaultRangeToTSV } from '@/components/DataGrid'
+import { defaultRangeToTSV } from "@/components/DataGrid";
 
 <DataGrid
   onRangeCopy={(range, { getCellValue, columns }) =>
     defaultRangeToTSV(range, getCellValue, columns)
   }
-/>
+/>;
 ```
 
 - The callback receives the active range plus a `getCellValue(rowIndex, columnId)` resolver and the visible-columns slice the range covers (in visual order, left → right).
@@ -320,9 +334,9 @@ If the click lands inside the current range, the range is preserved and the call
 See `DataGrid.types.ts` for the full contract. Key types:
 
 - `DataGridProps<TRow>` — component controlled props (no `cellRenderers` field)
-- `DataGridColumnDef<TRow, TValue>` — column definition (`id`, `header`, `accessor`, `cell`, `align`, `editable` *(phase 2 — not yet implemented)*, `width`, pinning/visibility flags)
+- `DataGridColumnDef<TRow, TValue>` — column definition (`id`, `header`, `accessor`, `cell`, `align`, `editable` _(phase 2 — not yet implemented)_, `width`, pinning/visibility flags)
 - `CellRenderer<TRow, TValue>` — `React.ComponentType<DataGridCellProps<TRow, TValue>>`
-- `DataGridCellProps<TRow, TValue>` — everything a cell receives: display props + edit props *(phase 2 — not yet implemented)* + selection props + `extras`
+- `DataGridCellProps<TRow, TValue>` — everything a cell receives: display props + edit props _(phase 2 — not yet implemented)_ + selection props + `extras`
 - `DataGridView<TFilters>` — view state object: `{ pageIndex, pageSize, sorting, filters }`
 - `ColumnConfigState` — column visibility/order/sizing/pinning bundle
 - `CellRangeSelection` — `{ anchor, focus }` with `{ rowIndex, columnId }` endpoints
@@ -342,7 +356,7 @@ See `DataGrid.types.ts` for the full contract. Key types:
 - Dynamic row heights (truncate with tooltip instead)
 - Column virtualization
 - Multi-column sort
-- Inline editing *(phase 2 — not yet implemented; cells render display-only today)*
+- Inline editing _(phase 2 — not yet implemented; cells render display-only today)_
 - Cross-user URL sharing
 - Filter UI (external to the grid)
 - Data fetching, caching, optimistic updates
@@ -372,7 +386,7 @@ A: Set `cell: MyCustomCell` directly on that column's `DataGridColumnDef`. There
 A: Your `accessor` returns an object. Either change the accessor to return a primitive (`(row) => row.nested.value`) or pass a custom `cell` that knows how to render the object shape. The default cell is intentionally dumb about objects.
 
 **Q: I want an editable text column but my custom cell doesn't respond to double-click.**
-A: Inline editing is not implemented in phase 1 — `allowInlineEdit` is false and the `isEditing` seam exists but is dormant. *(Phase 2 — not yet implemented.)* Until then, setting `editable: true` does nothing visible.
+A: Inline editing is not implemented in phase 1 — `allowInlineEdit` is false and the `isEditing` seam exists but is dormant. _(Phase 2 — not yet implemented.)_ Until then, setting `editable: true` does nothing visible.
 
 **Q: How do I persist view state across refreshes?**
 A: The grid doesn't do it. Write a page-level hook that reads from URL / localStorage / server and passes `[view, setView]` to `useDataGrid`. The existing Products page is the reference.

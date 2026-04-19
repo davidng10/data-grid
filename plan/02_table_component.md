@@ -1,17 +1,18 @@
 # 02 — Table Component (`<DataGrid />`)
 
 ## Responsibility
+
 Render the grid, manage the TanStack Table instance, lay out the sticky header + pinned columns inside a single scroll container, delegate row rendering to the virtualizer, delegate cell rendering to the registry. Owns single-column sort UI. Fills its parent container — caller is responsible for providing bounded dimensions.
 
 ## Library choices
 
-| Library | Purpose |
-|---|---|
-| `@tanstack/react-table` v8 | Headless table state (columns, sort, visibility, sizing, pinning, order). |
-| `@tanstack/react-virtual` v3 | Row virtualization only. |
-| `@dnd-kit/core` + `@dnd-kit/sortable` | Column reorder DnD. |
-| `clsx` | Class merging. |
-| No antd | Not in the framework. OK inside consumer-supplied cell renderers. |
+| Library                               | Purpose                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| `@tanstack/react-table` v8            | Headless table state (columns, sort, visibility, sizing, pinning, order). |
+| `@tanstack/react-virtual` v3          | Row virtualization only.                                                  |
+| `@dnd-kit/core` + `@dnd-kit/sortable` | Column reorder DnD.                                                       |
+| `clsx`                                | Class merging.                                                            |
+| No antd                               | Not in the framework. OK inside consumer-supplied cell renderers.         |
 
 ## Sizing
 
@@ -93,12 +94,12 @@ Use `top: ${vr.start}px` with `position: absolute` instead. Performance is equiv
 
 ### Z-index layers
 
-| Element | z-index | Why |
-|---|---|---|
-| Pinned header cells (top corners) | 3 | Above everything else |
-| Header row (non-pinned cells) | 2 | Above body rows |
-| Pinned body cells | 1 | Above non-pinned body cells |
-| Non-pinned body cells | 0 (default) | Baseline |
+| Element                           | z-index     | Why                         |
+| --------------------------------- | ----------- | --------------------------- |
+| Pinned header cells (top corners) | 3           | Above everything else       |
+| Header row (non-pinned cells)     | 2           | Above body rows             |
+| Pinned body cells                 | 1           | Above non-pinned body cells |
+| Non-pinned body cells             | 0 (default) | Baseline                    |
 
 Background color is required on header cells and pinned cells so content below doesn't bleed through when they're sticky. Use a solid color matching the grid's background.
 
@@ -136,12 +137,12 @@ const table = useReactTable({
   onColumnPinningChange,
   onPaginationChange,
   getCoreRowModel: getCoreRowModel(),
-  manualPagination: true,       // server-side
-  manualSorting: true,          // server-side
-  manualFiltering: true,        // filter UI is external
-  columnResizeMode: 'onChange',
+  manualPagination: true, // server-side
+  manualSorting: true, // server-side
+  manualFiltering: true, // filter UI is external
+  columnResizeMode: "onChange",
   getRowId,
-})
+});
 ```
 
 - No `getSortedRowModel`, no `getFilteredRowModel`, no `getPaginationRowModel` — all server-side.
@@ -158,11 +159,11 @@ const table = useReactTable({
 
 ## Loading and empty states
 
-| State | Render |
-|---|---|
-| `isLoading && data.length === 0` | Skeleton: 3 placeholder rows with shimmering cells. |
-| `!isLoading && data.length === 0` | `emptyState` prop, or default "No results". |
-| `isLoading && data.length > 0` | Keep current data; show a subtle 2px top-border "loading" bar. User is paginating while browsing. |
+| State                             | Render                                                                                            |
+| --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `isLoading && data.length === 0`  | Skeleton: 3 placeholder rows with shimmering cells.                                               |
+| `!isLoading && data.length === 0` | `emptyState` prop, or default "No results".                                                       |
+| `isLoading && data.length > 0`    | Keep current data; show a subtle 2px top-border "loading" bar. User is paginating while browsing. |
 
 ## Single-column sort — interaction with server
 

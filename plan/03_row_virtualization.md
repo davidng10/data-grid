@@ -17,14 +17,14 @@ Dynamic height is explicitly deferred. If we later need it, the migration is: sw
 
 ```ts
 const rowVirtualizer = useVirtualizer({
-  count: data.length,                      // rows on the current page (typically 100)
+  count: data.length, // rows on the current page (typically 100)
   getScrollElement: () => bodyRef.current,
   estimateSize: () => rowHeight,
   overscan: 10,
-})
+});
 
-const totalSize = rowVirtualizer.getTotalSize()
-const virtualRows = rowVirtualizer.getVirtualItems()
+const totalSize = rowVirtualizer.getTotalSize();
+const virtualRows = rowVirtualizer.getVirtualItems();
 ```
 
 - `ScrollContainer` (aka `bodyRef`): `flex: 1; min-height: 0; overflow: auto` (both axes — horizontal for pinned-column scroll, vertical for virtualization).
@@ -42,7 +42,7 @@ const virtualRows = rowVirtualizer.getVirtualItems()
 
 **Problem.** The user double-clicks a cell to edit. They scroll. The row exits the overscan window. The row's DOM unmounts. The editor component unmounts mid-edit. Draft value lost.
 
-**Solution.** Editor state lives *above* the virtualizer.
+**Solution.** Editor state lives _above_ the virtualizer.
 
 1. `activeEditor: { rowId, columnId, draftValue } | null` is a top-level state held inside `useDataGrid` (phase 1 keeps it internal; phase 2 may lift it to controlled). It is NOT stored on the cell component.
 2. When a cell renders and its `{ rowId, columnId }` matches `activeEditor`, it renders in edit mode, initialized from `activeEditor.draftValue`.
@@ -61,15 +61,15 @@ const virtualRows = rowVirtualizer.getVirtualItems()
 
 > **Status: deferred.** The rules below are the long-term design, but **not implemented in phase 1**. Deferred pending further discussion about the bidirectional coupling between the grid (scroll owner, owns `bodyRef`) and the hook (view state owner). Today the grid does **not** reset scroll on page / sort / filter change. Do not add this in session 2 or 3 — wait for explicit direction from the user.
 
-| Event | Reset scroll to top? |
-|---|---|
-| Page change | Yes (deferred) |
-| Sort change | Yes (deferred) |
-| Filter change (via props) | Yes (deferred) |
-| Column visibility change | No |
-| Column reorder | No |
-| Column resize | No |
-| Column pin/unpin | No |
+| Event                     | Reset scroll to top? |
+| ------------------------- | -------------------- |
+| Page change               | Yes (deferred)       |
+| Sort change               | Yes (deferred)       |
+| Filter change (via props) | Yes (deferred)       |
+| Column visibility change  | No                   |
+| Column reorder            | No                   |
+| Column resize             | No                   |
+| Column pin/unpin          | No                   |
 
 Reset is: `bodyRef.current.scrollTop = 0`.
 
@@ -77,9 +77,12 @@ Reset is: `bodyRef.current.scrollTop = 0`.
 
 ```ts
 type DataGridHandle = {
-  scrollToRow: (rowIndex: number, options?: { align?: 'start' | 'center' | 'end' }) => void
-  scrollToTop: () => void
-}
+  scrollToRow: (
+    rowIndex: number,
+    options?: { align?: "start" | "center" | "end" },
+  ) => void;
+  scrollToTop: () => void;
+};
 ```
 
 Exposed via `forwardRef`. Uses `rowVirtualizer.scrollToIndex` internally.

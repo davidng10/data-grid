@@ -7,7 +7,7 @@ The grid owns no cell type enum, no type registry, and no renderer lookup table.
 1. Provides a `cell` component directly on its column def, OR
 2. Lets the grid render `String(value ?? '')` via `TextCell` — ugly for non-string values, intentionally so. The ugliness is a signal: "set a `cell` on this column."
 
-`TextCell` is both the only built-in cell shipped in phase 1 *and* the implicit fallback when `column.cell` is unset. There is no separate `DefaultCell`. Other type-aware cells (`NumberCell`, `DateCell`, etc.) are deferred future work — the user will build them later as needed. For now, anything that isn't string-like either gets the ugly coercion or a custom inline `cell`.
+`TextCell` is both the only built-in cell shipped in phase 1 _and_ the implicit fallback when `column.cell` is unset. There is no separate `DefaultCell`. Other type-aware cells (`NumberCell`, `DateCell`, etc.) are deferred future work — the user will build them later as needed. For now, anything that isn't string-like either gets the ugly coercion or a custom inline `cell`.
 
 No `cellRenderers.byKey`. No `cellRenderers.byType`. No `column.type`. Just `column.cell`.
 
@@ -15,48 +15,49 @@ No `cellRenderers.byKey`. No `cellRenderers.byType`. No `column.type`. Just `col
 
 ```ts
 type DataGridColumnDef<TRow, TValue = unknown> = {
-  id: string
-  header: string | ((ctx: HeaderContext<TRow>) => ReactNode)
-  accessor: (row: TRow) => TValue
+  id: string;
+  header: string | ((ctx: HeaderContext<TRow>) => ReactNode);
+  accessor: (row: TRow) => TValue;
 
-  cell?: CellRenderer<TRow, TValue>       // defaults to TextCell (String(value ?? ''))
-  editable?: boolean                       // phase 2 — grid wires dblclick/Enter only when true
-  align?: 'left' | 'right' | 'center'      // pure styling hint, honored by TextCell and any built-ins
+  cell?: CellRenderer<TRow, TValue>; // defaults to TextCell (String(value ?? ''))
+  editable?: boolean; // phase 2 — grid wires dblclick/Enter only when true
+  align?: "left" | "right" | "center"; // pure styling hint, honored by TextCell and any built-ins
 
   // sizing, pinning, visibility flags per 01_architecture.md
-}
+};
 ```
 
 ## Cell renderer contract
 
 ```ts
-type CellRenderer<TRow = unknown, TValue = unknown> =
-  React.ComponentType<DataGridCellProps<TRow, TValue>>
+type CellRenderer<TRow = unknown, TValue = unknown> = React.ComponentType<
+  DataGridCellProps<TRow, TValue>
+>;
 
 type DataGridCellProps<TRow = unknown, TValue = unknown> = {
   // Display
-  row: TRow
-  rowId: string
-  rowIndex: number                    // index within current page (transient)
-  column: DataGridColumnDef<TRow, TValue>
-  value: TValue
-  align: 'left' | 'right' | 'center'  // from column.align, or inherited default
+  row: TRow;
+  rowId: string;
+  rowIndex: number; // index within current page (transient)
+  column: DataGridColumnDef<TRow, TValue>;
+  value: TValue;
+  align: "left" | "right" | "center"; // from column.align, or inherited default
 
   // Edit mode (phase 2 — phase 1 cells can ignore entirely)
-  isEditing: boolean
-  draftValue: TValue | undefined
-  setDraftValue: (next: TValue) => void
-  commitEdit: () => void
-  cancelEdit: () => void
+  isEditing: boolean;
+  draftValue: TValue | undefined;
+  setDraftValue: (next: TValue) => void;
+  commitEdit: () => void;
+  cancelEdit: () => void;
 
   // Selection (phase 1)
-  isInRange: boolean
-  isRangeAnchor: boolean
-  isRangeFocus: boolean
+  isInRange: boolean;
+  isRangeAnchor: boolean;
+  isRangeFocus: boolean;
 
   // Consumer passthrough
-  extras: Record<string, unknown>     // from DataGrid cellExtras prop
-}
+  extras: Record<string, unknown>; // from DataGrid cellExtras prop
+};
 ```
 
 Phase 1 cells use `row`, `value`, `align`, `isInRange`, `extras`. Phase 2 adds the edit fields. The contract is stable across phases — no breaking change when editing ships.
@@ -65,24 +66,25 @@ Phase 1 cells use `row`, `value`, `align`, `isInRange`, `extras`. Phase 2 adds t
 
 ```tsx
 const TextCell: CellRenderer = ({ value, align }) => {
-  const text = value == null ? '' : String(value)
+  const text = value == null ? "" : String(value);
   return (
     <span
       title={text}
       style={{
         textAlign: align,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
       }}
     >
       {text}
     </span>
-  )
-}
+  );
+};
 ```
 
 Behavior:
+
 - `null` / `undefined` → empty cell
 - `"hello"` → `"hello"`
 - `42` → `"42"`
@@ -98,7 +100,7 @@ The object and date cases are **intentionally ugly**. Document loudly in the REA
 Phase 1 ships exactly one:
 
 ```ts
-import { TextCell } from '@/components/DataGrid'
+import { TextCell } from "@/components/DataGrid";
 ```
 
 `TextCell` is described above. It's the fallback and the only named export. Display-only; the `isEditing` / `draftValue` / `commitEdit` / `cancelEdit` props exist on the contract but `TextCell` ignores them. Memoized with a shallow comparator on `value`, `align`, `isInRange`, `isEditing`.
@@ -123,7 +125,13 @@ When a future cell is built, it will follow this shape — one component, two br
 ```tsx
 // Illustrative only. Not implemented in phase 1.
 const NumberCell: CellRenderer<any, number> = ({
-  value, align, isEditing, draftValue, setDraftValue, commitEdit, cancelEdit,
+  value,
+  align,
+  isEditing,
+  draftValue,
+  setDraftValue,
+  commitEdit,
+  cancelEdit,
 }) => {
   if (isEditing) {
     return (
@@ -132,19 +140,21 @@ const NumberCell: CellRenderer<any, number> = ({
         onChange={(next) => setDraftValue(next ?? 0)}
         onBlur={commitEdit}
         onPressEnter={commitEdit}
-        onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit() }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") cancelEdit();
+        }}
         autoFocus
-        style={{ width: '100%' }}
+        style={{ width: "100%" }}
       />
-    )
+    );
   }
 
   return (
-    <span style={{ textAlign: align ?? 'right', width: '100%' }}>
-      {value?.toLocaleString() ?? ''}
+    <span style={{ textAlign: align ?? "right", width: "100%" }}>
+      {value?.toLocaleString() ?? ""}
     </span>
-  )
-}
+  );
+};
 ```
 
 A future consumer passing `cell: NumberCell` on an `editable: true` column would get both modes with zero extra code. None of that wires up in phase 1 because the cell doesn't exist.
@@ -153,11 +163,11 @@ A future consumer passing `cell: NumberCell` on an `editable: true` column would
 
 Three-layer split. None of the layers "owns" editing alone:
 
-| Concern | Owner |
-|---|---|
-| Which cell is active, draft storage, entry/exit, scroll preservation, commit-on-focus-move, keyboard shortcuts (dblclick / Enter / Esc) | Grid (`useDataGrid`) |
-| Input UI, local UI state (e.g. "is the date picker popover open?"), how keystrokes map to draft value | Cell |
-| Persisting the committed value to BE, error handling, data refresh after commit | Consumer (via `onCommitEdit` callback) |
+| Concern                                                                                                                                 | Owner                                  |
+| --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Which cell is active, draft storage, entry/exit, scroll preservation, commit-on-focus-move, keyboard shortcuts (dblclick / Enter / Esc) | Grid (`useDataGrid`)                   |
+| Input UI, local UI state (e.g. "is the date picker popover open?"), how keystrokes map to draft value                                   | Cell                                   |
+| Persisting the committed value to BE, error handling, data refresh after commit                                                         | Consumer (via `onCommitEdit` callback) |
 
 The cell is a **reactive participant** in the grid's state machine, not the state owner. Same pattern as a controlled `<input>` — the input doesn't own its value, React does.
 
@@ -166,10 +176,10 @@ The cell is a **reactive participant** in the grid's state machine, not the stat
 ```ts
 // Internal to useDataGrid
 const [activeEditor, setActiveEditor] = useState<{
-  rowId: string
-  columnId: string
-  draftValue: unknown
-} | null>(null)
+  rowId: string;
+  columnId: string;
+  draftValue: unknown;
+} | null>(null);
 ```
 
 Entry points (grid-level event handlers, only active when `column.editable === true && allowInlineEdit === true`):
@@ -201,6 +211,7 @@ useDataGrid({
 ```
 
 On commit:
+
 - Grid calls `onCommitEdit`
 - Consumer does the mutation (e.g., `await patchProduct(rowId, { [columnId]: value })`)
 - Consumer updates local data (or the grid refetches — consumer's choice)
@@ -216,6 +227,7 @@ Dev-mode warning: on the first render where `isEditing === true` for a column, i
 ## RTF specifically (phase 1)
 
 Still a placeholder. No `RTFCell` exported in phase 1. Consumers with RTF data either:
+
 - Pass `cell: TextCell` and accept the plain-text fallback
 - Write their own custom cell with a read-only preview + a modal for full rendering (using DOMPurify + React's raw HTML escape hatch)
 
@@ -227,12 +239,33 @@ Phase 2 may ship an `RTFCell` with controlled editing; the decision is deferred.
 
 ```tsx
 const columns: DataGridColumnDef<Order>[] = [
-  { id: 'id',       header: 'Order #',  accessor: (o) => o.id },                                // fallback: TextCell
-  { id: 'customer', header: 'Customer', accessor: (o) => o.customerName, cell: TextCell },
-  { id: 'total',    header: 'Total',    accessor: (o) => o.total,        cell: TextCell, align: 'right' },
-  { id: 'status',   header: 'Status',   accessor: (o) => o.status,       cell: TextCell },
-  { id: 'created',  header: 'Created',  accessor: (o) => o.createdAt,    cell: TextCell },      // ISO/locale string via String()
-]
+  { id: "id", header: "Order #", accessor: (o) => o.id }, // fallback: TextCell
+  {
+    id: "customer",
+    header: "Customer",
+    accessor: (o) => o.customerName,
+    cell: TextCell,
+  },
+  {
+    id: "total",
+    header: "Total",
+    accessor: (o) => o.total,
+    cell: TextCell,
+    align: "right",
+  },
+  {
+    id: "status",
+    header: "Status",
+    accessor: (o) => o.status,
+    cell: TextCell,
+  },
+  {
+    id: "created",
+    header: "Created",
+    accessor: (o) => o.createdAt,
+    cell: TextCell,
+  }, // ISO/locale string via String()
+];
 ```
 
 In phase 1 you only get the string coercion. If that's not enough for a given column, drop to Pattern 2 and write a custom cell inline. Richer built-ins (Number/Date/etc.) come later.

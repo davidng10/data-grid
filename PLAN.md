@@ -1,9 +1,11 @@
 # Data Grid — Master Plan
 
 ## Goal
+
 Build a generic, data-source-agnostic `<DataGrid />` for React + TypeScript, plus an opinionated hook that wires it to the supplier-facing Products × Attributes screen.
 
 ## Non-negotiables (confirmed)
+
 - React + TypeScript
 - TanStack Table v8 (headless) + TanStack Virtual v3 (row virt only)
 - No Tailwind. CSS Modules + inline styles, merged with `clsx`
@@ -46,7 +48,7 @@ Three layers:
     - `setFilters(f)` → resets `pageIndex` to 0, clears row selection, clears range selection
     - `setPageSize(n)` → resets `pageIndex` to 0, clears range selection
     - `setPage(i)` → clears range selection only
-    Non-negotiable inside the hook. Pages with different semantics wrap the hook — but then they're off the happy path.
+      Non-negotiable inside the hook. Pages with different semantics wrap the hook — but then they're off the happy path.
 
 ## Scope by phase
 
@@ -57,6 +59,7 @@ Render, row virtualize, sort (single col, server), paginate (controlled), pin (c
 Per-type editor components, commit/cancel wiring to a BE mutation, optimistic updates, error recovery, keyboard navigation between cells. Additive — the contract is already in phase 1.
 
 **Explicitly out of scope (deferred or excluded).**
+
 - Infinite scroll / keyset pagination (offset is accepted)
 - Cross-user URL sharing (local-first only)
 - RTF inline editing

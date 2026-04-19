@@ -3,6 +3,7 @@
 ## Future feature, do not implement.
 
 ## Problem recap
+
 - Filter state can be arbitrarily large (1000-element `$in` arrays).
 - CloudFront URL limit is ~8192 bytes.
 - Refreshing the page must restore state.
@@ -26,15 +27,16 @@
 **Key:** `datagrid:view:<tableInstanceId>:<viewId>`
 
 **Value:**
+
 ```ts
 type PersistedView = {
-  pageIndex: number
-  pageSize: number
-  sorting: SortingState              // TanStack shape — single column in v1
-  filters: FilterState               // BE-operator shape as-is
-  createdAt: number                  // Unix ms, for LRU eviction
-  schemaVersion: 1
-}
+  pageIndex: number;
+  pageSize: number;
+  sorting: SortingState; // TanStack shape — single column in v1
+  filters: FilterState; // BE-operator shape as-is
+  createdAt: number; // Unix ms, for LRU eviction
+  schemaVersion: 1;
+};
 ```
 
 - Filter state is stored raw. A 1000-element `$in` is ~20KB — comfortably under the ~5MB localStorage quota.
@@ -47,14 +49,15 @@ type PersistedView = {
 **Key:** `datagrid:config:<tableInstanceId>:v1`
 
 **Value:**
+
 ```ts
 type PersistedColumnConfig = {
-  columnVisibility: Record<string, boolean>
-  columnOrder: string[]
-  columnSizing: Record<string, number>
-  columnPinning: { left: string[]; right: string[] }
-  schemaVersion: 1
-}
+  columnVisibility: Record<string, boolean>;
+  columnOrder: string[];
+  columnSizing: Record<string, number>;
+  columnPinning: { left: string[]; right: string[] };
+  schemaVersion: 1;
+};
 ```
 
 - Per `tableInstanceId`, not per `viewId`.
@@ -69,6 +72,7 @@ Per the user requirement: "refreshing the page should not lose column config." C
 ## Validation on read
 
 ### Per-view
+
 - If the key is missing: mint a new default view, replaceState, show "Restored to default view" toast.
 - If parse fails: same as missing.
 - If `pageIndex * pageSize > totalRows`: clamp to the last valid page after the first query returns. Don't block the bootstrap.
@@ -76,6 +80,7 @@ Per the user requirement: "refreshing the page should not lose column config." C
 - If `filters` reference an unknown attribute: let the BE decide (it'll ignore unknown keys or return an error; the page handles it).
 
 ### Per-instance config
+
 - If `columnVisibility` has > 40 `true` values: trim to the first 40 (by `columnOrder`), show a one-time toast on next visit.
 - If ids in any field don't exist in the current `columns` prop: silently drop them.
 - If `fixedVisible` columns are missing: force them to `true`.
@@ -85,20 +90,20 @@ Per the user requirement: "refreshing the page should not lose column config." C
 
 ## History semantics — what mints a new `viewId`?
 
-| Event | New viewId? | Rationale |
-|---|---|---|
-| Change page | Yes | Back button should return to previous page. |
-| Change sort | Yes | Back button should undo sort. |
-| Apply filter | Yes | Back button should undo filter. |
-| Filter input keystroke | No | Would pollute history. |
-| Change page size | Yes | Non-trivial state change. |
-| Toggle column visibility | No | Persisted separately; not a "view" event. |
-| Pin / unpin column | No | Same. |
-| Reorder column | No | Same. |
-| Resize column | No | Same (also: high frequency, would flood history). |
-| Row selection change | No | Transient. |
-| Cell range selection change | No | Transient. |
-| Active editor change | No | Transient (phase 2). |
+| Event                       | New viewId? | Rationale                                         |
+| --------------------------- | ----------- | ------------------------------------------------- |
+| Change page                 | Yes         | Back button should return to previous page.       |
+| Change sort                 | Yes         | Back button should undo sort.                     |
+| Apply filter                | Yes         | Back button should undo filter.                   |
+| Filter input keystroke      | No          | Would pollute history.                            |
+| Change page size            | Yes         | Non-trivial state change.                         |
+| Toggle column visibility    | No          | Persisted separately; not a "view" event.         |
+| Pin / unpin column          | No          | Same.                                             |
+| Reorder column              | No          | Same.                                             |
+| Resize column               | No          | Same (also: high frequency, would flood history). |
+| Row selection change        | No          | Transient.                                        |
+| Cell range selection change | No          | Transient.                                        |
+| Active editor change        | No          | Transient (phase 2).                              |
 
 ### API
 
@@ -124,44 +129,49 @@ useUrlViewState(tableInstanceId): {
 
 ```ts
 function bootstrap(tableInstanceId: string) {
-  const url = new URL(window.location.href)
-  let viewId = url.searchParams.get('viewId')
+  const url = new URL(window.location.href);
+  let viewId = url.searchParams.get("viewId");
 
   if (!viewId) {
-    viewId = mintViewId()
-    url.searchParams.set('viewId', viewId)
-    window.history.replaceState(null, '', url.toString())
+    viewId = mintViewId();
+    url.searchParams.set("viewId", viewId);
+    window.history.replaceState(null, "", url.toString());
   }
 
-  const raw = localStorage.getItem(`datagrid:view:${tableInstanceId}:${viewId}`)
-  let view: PersistedView
+  const raw = localStorage.getItem(
+    `datagrid:view:${tableInstanceId}:${viewId}`,
+  );
+  let view: PersistedView;
   if (!raw) {
-    view = defaultView()
-    writeView(tableInstanceId, viewId, view)
+    view = defaultView();
+    writeView(tableInstanceId, viewId, view);
     // Optional: toast "Restored to default view" if viewId was in URL (stale paste)
   } else {
-    view = parseAndValidate(raw) ?? defaultView()
+    view = parseAndValidate(raw) ?? defaultView();
   }
 
-  const config = parseAndValidateConfig(
-    localStorage.getItem(`datagrid:config:${tableInstanceId}:v1`)
-  ) ?? defaultConfig()
+  const config =
+    parseAndValidateConfig(
+      localStorage.getItem(`datagrid:config:${tableInstanceId}:v1`),
+    ) ?? defaultConfig();
 
-  return { viewId, view, config }
+  return { viewId, view, config };
 }
 ```
 
 ## `popstate` handling
 
 ```ts
-window.addEventListener('popstate', () => {
-  const viewId = new URL(window.location.href).searchParams.get('viewId')
-  if (!viewId) return
-  const raw = localStorage.getItem(`datagrid:view:${tableInstanceId}:${viewId}`)
-  const view = raw ? parseAndValidate(raw) : defaultView()
-  setState(view)
+window.addEventListener("popstate", () => {
+  const viewId = new URL(window.location.href).searchParams.get("viewId");
+  if (!viewId) return;
+  const raw = localStorage.getItem(
+    `datagrid:view:${tableInstanceId}:${viewId}`,
+  );
+  const view = raw ? parseAndValidate(raw) : defaultView();
+  setState(view);
   // Do NOT pushState — the browser already moved history.
-})
+});
 ```
 
 ## Filter state representation

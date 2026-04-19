@@ -11,40 +11,59 @@ A generic, virtualized, fully-controlled data grid component for React + TypeScr
 ## Quick start
 
 ```tsx
-import {
-  DataGrid,
-  useDataGrid,
-  TextCell,
-  type DataGridColumnDef,
-  type DataGridView,
-} from '@/components/DataGrid'
-import { useLocalStorageColumnConfig } from '@/hooks/useLocalStorageColumnConfig'
+import { DataGrid, TextCell, useDataGrid } from "@/components/DataGrid";
+import { useLocalStorageColumnConfig } from "@/hooks/useLocalStorageColumnConfig";
 
-type Row = { id: string; name: string; price: number; createdAt: string }
+import type { DataGridColumnDef, DataGridView } from "@/components/DataGrid";
+
+type Row = { id: string; name: string; price: number; createdAt: string };
 
 const columns: DataGridColumnDef<Row>[] = [
-  { id: 'id',        header: 'ID',      accessor: (r) => r.id,        cell: TextCell },
-  { id: 'name',      header: 'Name',    accessor: (r) => r.name,      cell: TextCell },
-  { id: 'price',     header: 'Price',   accessor: (r) => r.price,     cell: TextCell, align: 'right' },
-  { id: 'createdAt', header: 'Created', accessor: (r) => r.createdAt, cell: TextCell },
-]
+  { id: "id", header: "ID", accessor: (r) => r.id, cell: TextCell },
+  { id: "name", header: "Name", accessor: (r) => r.name, cell: TextCell },
+  {
+    id: "price",
+    header: "Price",
+    accessor: (r) => r.price,
+    cell: TextCell,
+    align: "right",
+  },
+  {
+    id: "createdAt",
+    header: "Created",
+    accessor: (r) => r.createdAt,
+    cell: TextCell,
+  },
+];
 
 function MyPage() {
   const [view, setView] = useState<DataGridView<{}>>({
-    pageIndex: 0, pageSize: 50, sorting: [], filters: {},
-  })
-  const [columnConfig, setColumnConfig] = useLocalStorageColumnConfig('my-grid-v1')
+    pageIndex: 0,
+    pageSize: 50,
+    sorting: [],
+    filters: {},
+  });
+  const [columnConfig, setColumnConfig] =
+    useLocalStorageColumnConfig("my-grid-v1");
 
-  const { data, isLoading } = useQuery(['rows', view], () => fetchRows(view))
+  const { data, isLoading } = useQuery(["rows", view], () => fetchRows(view));
 
   const grid = useDataGrid<Row, {}>({
-    view, onViewChange: setView,
-    columnConfig, onColumnConfigChange: setColumnConfig,
+    view,
+    onViewChange: setView,
+    columnConfig,
+    onColumnConfigChange: setColumnConfig,
     rowCount: data?.total ?? 0,
-  })
+  });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+      }}
+    >
       <TopBar style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minHeight: 0 }}>
         <DataGrid
@@ -56,7 +75,7 @@ function MyPage() {
         />
       </div>
     </div>
-  )
+  );
 }
 ```
 
@@ -80,7 +99,7 @@ It **cannot** be `height: auto` at the scroll owner or anywhere between it and t
 
 ### `100vh` vs `height: 100%` — use both, at different levels
 
-`100vh` and `height: 100%` are not alternatives. `100vh` is the terminating anchor *somewhere* up the tree (usually at the app shell's outermost container). `height: 100%` is the propagation mechanism below it. Between them can be any amount of flex math.
+`100vh` and `height: 100%` are not alternatives. `100vh` is the terminating anchor _somewhere_ up the tree (usually at the app shell's outermost container). `height: 100%` is the propagation mechanism below it. Between them can be any amount of flex math.
 
 ```tsx
 <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>  {/* ← bound anchored here */}
@@ -139,7 +158,7 @@ Somewhere in the chain, `height: auto` sneaks in — an unstyled wrapper `<div>`
 
 ### 3. Missing `flexShrink: 0` on siblings above the grid
 
-In the canonical pattern, every sibling of the grid's parent (TopBar, PageTitle, ExpandableFilter) needs `flexShrink: 0`. Without it, when the grid wants more space, the flex algorithm will *compress* your header / filter to make room, causing visible jitter and weird partial-collapse.
+In the canonical pattern, every sibling of the grid's parent (TopBar, PageTitle, ExpandableFilter) needs `flexShrink: 0`. Without it, when the grid wants more space, the flex algorithm will _compress_ your header / filter to make room, causing visible jitter and weird partial-collapse.
 
 **Fix:** `flexShrink: 0` on anything above the grid that should be sized by content and never squeezed. The grid's parent is the only thing that should flex.
 
@@ -188,27 +207,27 @@ Persists column visibility/order/sizing/pinning to localStorage under a key you 
 
 Passed via `useDataGrid` options, propagated to `<DataGrid />`:
 
-| Flag | Default | When false |
-|---|---|---|
-| `allowSorting` | true | Header clicks don't sort. |
-| `allowPinning` | true | No pin/unpin in header menu. Column-def `fixedPin` still honored. |
-| `allowReorder` | true | No drag; no "move" in header menu. |
-| `allowResize` | true | No resize handles. |
-| `allowColumnVisibility` | true | "Hide" not offered in header menu. |
-| `allowRowSelection` | true | No pinned-left checkbox column. |
-| `allowRangeSelection` | true | Mouse drag doesn't start a range. |
-| `allowInlineEdit` | **false** | Cells never enter edit mode. (Phase 2 flips this.) |
+| Flag                    | Default   | When false                                                        |
+| ----------------------- | --------- | ----------------------------------------------------------------- |
+| `allowSorting`          | true      | Header clicks don't sort.                                         |
+| `allowPinning`          | true      | No pin/unpin in header menu. Column-def `fixedPin` still honored. |
+| `allowReorder`          | true      | No drag; no "move" in header menu.                                |
+| `allowResize`           | true      | No resize handles.                                                |
+| `allowColumnVisibility` | true      | "Hide" not offered in header menu.                                |
+| `allowRowSelection`     | true      | No pinned-left checkbox column.                                   |
+| `allowRangeSelection`   | true      | Mouse drag doesn't start a range.                                 |
+| `allowInlineEdit`       | **false** | Cells never enter edit mode. (Phase 2 flips this.)                |
 
 ## Transition rules (live in `useDataGrid`)
 
-| Event | pageIndex | rowSelection | cellRangeSelection |
-|---|---|---|---|
-| `grid.setPage(i)` | → i | preserved | cleared |
-| `grid.setPageSize(n)` | → 0 | preserved | cleared |
-| `grid.setSort(s)` | → 0 | **cleared** | cleared |
-| `grid.setFilters(f)` | → 0 | **cleared** | cleared |
-| column visibility change | unchanged | preserved | cleared if range spans a hidden column |
-| column reorder / resize / pin | unchanged | preserved | preserved |
+| Event                         | pageIndex | rowSelection | cellRangeSelection                     |
+| ----------------------------- | --------- | ------------ | -------------------------------------- |
+| `grid.setPage(i)`             | → i       | preserved    | cleared                                |
+| `grid.setPageSize(n)`         | → 0       | preserved    | cleared                                |
+| `grid.setSort(s)`             | → 0       | **cleared**  | cleared                                |
+| `grid.setFilters(f)`          | → 0       | **cleared**  | cleared                                |
+| column visibility change      | unchanged | preserved    | cleared if range spans a hidden column |
+| column reorder / resize / pin | unchanged | preserved    | preserved                              |
 
 Non-negotiable inside the hook. If your page needs different semantics, wrap the hook.
 
@@ -227,7 +246,7 @@ If you omit `cell`, the grid falls back to `TextCell` which renders `String(valu
 Phase 1 ships exactly one:
 
 ```ts
-import { TextCell } from '@/components/DataGrid'
+import { TextCell } from "@/components/DataGrid";
 ```
 
 That's the whole library surface for cells today. `TextCell` is display-only, uses `String(value ?? '')`, respects `align`, and doubles as the implicit fallback when `column.cell` is unset — there is no separate `DefaultCell`.

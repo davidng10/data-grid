@@ -5,6 +5,7 @@ Two independent selection systems. They coexist without interfering.
 ## Row selection
 
 ### UI
+
 - A pinned-left checkbox column injected by the grid when `allowRowSelection` is true.
 - Column config (internal, not user-editable):
   - id: `__select__`
@@ -18,26 +19,29 @@ Two independent selection systems. They coexist without interfering.
 Hidden entirely when `allowRowSelection: false`.
 
 ### State shape
+
 `rowSelection: Record<string, boolean>` — TanStack's default shape. Key is `getRowId(row)` (SKU, for products).
 
 ### Semantics
 
-| Event | Selection behavior |
-|---|---|
-| Click row checkbox | Toggle that row id. |
-| Click header checkbox | If all visible rows selected, deselect them all. Otherwise select all visible rows. Affects current page only. |
-| Shift-click row checkbox | Select range from last-clicked to current (visible rows only). |
-| Change page | Preserve selection across pages. User can accumulate selection across paged data. |
-| Change sort | Preserve selection. |
-| Apply filter | **Clear selection.** The selected rows may no longer match the filter — less confusing to clear than to surface phantom selections. |
-| Change column visibility / reorder / resize / pin | Preserve selection. |
+| Event                                             | Selection behavior                                                                                                                  |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Click row checkbox                                | Toggle that row id.                                                                                                                 |
+| Click header checkbox                             | If all visible rows selected, deselect them all. Otherwise select all visible rows. Affects current page only.                      |
+| Shift-click row checkbox                          | Select range from last-clicked to current (visible rows only).                                                                      |
+| Change page                                       | Preserve selection across pages. User can accumulate selection across paged data.                                                   |
+| Change sort                                       | Preserve selection.                                                                                                                 |
+| Apply filter                                      | **Clear selection.** The selected rows may no longer match the filter — less confusing to clear than to surface phantom selections. |
+| Change column visibility / reorder / resize / pin | Preserve selection.                                                                                                                 |
 
 "Select all across all pages" is **not** offered in v1. If later needed, add a banner: "1,247 rows selected on this page. [Select all 8,342 matching rows]" — but defer.
 
 ### Exposed to consumer
+
 The hook exposes `selection: { rowIds: string[], clear: () => void }` for the page to render a "X selected" action bar above the grid.
 
 ### Row selection vs cell range selection
+
 - Clicking a row checkbox does NOT clear cell range selection.
 - Starting a cell range drag does NOT clear row selection.
 - They're two separate state slices with no interaction.
@@ -48,9 +52,9 @@ The hook exposes `selection: { rowIds: string[], clear: () => void }` for the pa
 
 ```ts
 type CellRangeSelection = {
-  anchor: { rowIndex: number; columnId: string }   // where mousedown started
-  focus:  { rowIndex: number; columnId: string }   // current cursor / where mouseup ended
-}
+  anchor: { rowIndex: number; columnId: string }; // where mousedown started
+  focus: { rowIndex: number; columnId: string }; // current cursor / where mouseup ended
+};
 
 // `null` means no range active.
 ```
@@ -62,20 +66,32 @@ type CellRangeSelection = {
 - A single-cell click is a 1×1 range.
 
 ### Why index-based not DOM-based
+
 Virtualized-out rows are not in the DOM. DOM walking can't find them. Index-based math is O(1) per cell.
 
 ### Computing "is this cell in the range"
 
 ```ts
-function isInRange(rowIndex: number, columnId: string, range: CellRangeSelection, visualColIndex: (id: string) => number): boolean {
-  if (!range) return false
-  const rMin = Math.min(range.anchor.rowIndex, range.focus.rowIndex)
-  const rMax = Math.max(range.anchor.rowIndex, range.focus.rowIndex)
-  if (rowIndex < rMin || rowIndex > rMax) return false
-  const cIdx = visualColIndex(columnId)
-  const cMin = Math.min(visualColIndex(range.anchor.columnId), visualColIndex(range.focus.columnId))
-  const cMax = Math.max(visualColIndex(range.anchor.columnId), visualColIndex(range.focus.columnId))
-  return cIdx >= cMin && cIdx <= cMax
+function isInRange(
+  rowIndex: number,
+  columnId: string,
+  range: CellRangeSelection,
+  visualColIndex: (id: string) => number,
+): boolean {
+  if (!range) return false;
+  const rMin = Math.min(range.anchor.rowIndex, range.focus.rowIndex);
+  const rMax = Math.max(range.anchor.rowIndex, range.focus.rowIndex);
+  if (rowIndex < rMin || rowIndex > rMax) return false;
+  const cIdx = visualColIndex(columnId);
+  const cMin = Math.min(
+    visualColIndex(range.anchor.columnId),
+    visualColIndex(range.focus.columnId),
+  );
+  const cMax = Math.max(
+    visualColIndex(range.anchor.columnId),
+    visualColIndex(range.focus.columnId),
+  );
+  return cIdx >= cMin && cIdx <= cMax;
 }
 ```
 
@@ -90,15 +106,15 @@ Re-rendering every cell on every range-mousemove event is wasteful. Two options:
 
 ### Mouse interactions
 
-| Event | Effect |
-|---|---|
-| `mousedown` on cell body | Set anchor=focus=that cell. Start a "dragging" flag. Set focused cell. |
-| `mouseenter` on cell (while dragging) | Update focus. |
-| `mouseup` anywhere | End dragging. Range persists. |
-| `click` outside grid body | Clear range. |
-| `contextmenu` on cell in range | Keep range. Fire `onRangeContextMenu(e, range)`. Consumer renders the menu. |
-| `contextmenu` on cell outside range | Collapse range to 1×1 on that cell. Fire `onRangeContextMenu`. |
-| `mousedown` on cell with Shift held | Extend focus from existing anchor (don't reset anchor). |
+| Event                                 | Effect                                                                      |
+| ------------------------------------- | --------------------------------------------------------------------------- |
+| `mousedown` on cell body              | Set anchor=focus=that cell. Start a "dragging" flag. Set focused cell.      |
+| `mouseenter` on cell (while dragging) | Update focus.                                                               |
+| `mouseup` anywhere                    | End dragging. Range persists.                                               |
+| `click` outside grid body             | Clear range.                                                                |
+| `contextmenu` on cell in range        | Keep range. Fire `onRangeContextMenu(e, range)`. Consumer renders the menu. |
+| `contextmenu` on cell outside range   | Collapse range to 1×1 on that cell. Fire `onRangeContextMenu`.              |
+| `mousedown` on cell with Shift held   | Extend focus from existing anchor (don't reset anchor).                     |
 
 **Do not** use native browser selection for this. The grid should call `e.preventDefault()` on mousedown inside cells and handle selection manually. Native selection fights with sticky columns and virtualization.
 
@@ -115,13 +131,13 @@ If the mouse leaves the body's vertical or horizontal viewport while dragging a 
 
 Phase 1 ships these; defer more advanced keyboard nav to phase 2. **All grid keyboard handling is gated on `focusedCell !== null`** — see "Focused cell" below for why. When no cell is focused, the grid does not `preventDefault` arrow keys, so the browser handles them natively (page scroll).
 
-| Key | Effect (only when a cell is focused) |
-|---|---|
-| Arrow keys | Move focus by one cell, collapse to 1×1. |
-| Shift + arrow | Extend focus from anchor. |
-| Esc | Clear range. Focus stays. |
-| Ctrl/Cmd + C | Fire `onRangeCopy(range, ctx)` if provided (see Callback API below). |
-| Ctrl/Cmd + A | Select all visible cells on current page (anchor → top-left, focus → bottom-right). Works even with no prior focus, because Ctrl+A is unambiguous; sets focus to bottom-right after. |
+| Key           | Effect (only when a cell is focused)                                                                                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Arrow keys    | Move focus by one cell, collapse to 1×1.                                                                                                                                             |
+| Shift + arrow | Extend focus from anchor.                                                                                                                                                            |
+| Esc           | Clear range. Focus stays.                                                                                                                                                            |
+| Ctrl/Cmd + C  | Fire `onRangeCopy(range, ctx)` if provided (see Callback API below).                                                                                                                 |
+| Ctrl/Cmd + A  | Select all visible cells on current page (anchor → top-left, focus → bottom-right). Works even with no prior focus, because Ctrl+A is unambiguous; sets focus to bottom-right after. |
 
 **Phase 1 keyboard scope:** ship arrow, shift+arrow, Esc, Ctrl+C, Ctrl+A. Focus management: grid body has `tabIndex={0}` so it can receive keyboard events. The grid tracks a "focused cell" — see next section.
 
@@ -131,17 +147,17 @@ The "focused cell" is `{ rowIndex, columnId } | null`, separate from the cell ra
 
 **Mutations:**
 
-| Event | Effect on focused cell |
-|---|---|
-| Click on a cell | Set focused cell to that cell. |
-| `mousedown` (range start) | Set focused cell to the anchor cell. |
-| Range drag (`mouseenter` while dragging) | Move focused cell with the focus endpoint. |
-| Arrow / Shift+Arrow | Move focused cell. |
-| Ctrl+A | Set focused cell to bottom-right of the resulting range. |
-| Esc | Range clears; **focus stays**. |
-| Page change (`pageIndex` updated) | Focus clears (`null`). |
-| Filter / sort change | Focus clears (range already clears here too). |
-| Page size change | Focus clears. |
+| Event                                    | Effect on focused cell                                   |
+| ---------------------------------------- | -------------------------------------------------------- |
+| Click on a cell                          | Set focused cell to that cell.                           |
+| `mousedown` (range start)                | Set focused cell to the anchor cell.                     |
+| Range drag (`mouseenter` while dragging) | Move focused cell with the focus endpoint.               |
+| Arrow / Shift+Arrow                      | Move focused cell.                                       |
+| Ctrl+A                                   | Set focused cell to bottom-right of the resulting range. |
+| Esc                                      | Range clears; **focus stays**.                           |
+| Page change (`pageIndex` updated)        | Focus clears (`null`).                                   |
+| Filter / sort change                     | Focus clears (range already clears here too).            |
+| Page size change                         | Focus clears.                                            |
 
 **Strict no-op when `focusedCell === null`:** the grid does not intercept arrow keys / Shift+Arrow / Ctrl+C in this state. They flow through to the browser, which means **arrow keys produce native page scroll** as the user expects when nothing is focused. Cell traversal only activates after the user clicks (or starts a drag) inside the grid. Ctrl+A is the one exception — it always works because there's no ambiguity about what "select all" means.
 
@@ -152,7 +168,7 @@ The "focused cell" is `{ rowIndex, columnId } | null`, separate from the cell ra
 ```ts
 type DataGridProps<TRow> = {
   // ...
-  onRangeContextMenu?: (e: MouseEvent, range: CellRange) => void
+  onRangeContextMenu?: (e: MouseEvent, range: CellRange) => void;
 
   // Ctrl+C: fired only if provided. Grid passes a getCellValue helper and the
   // resolved column list (in current visual order, including pinned). Consumer
@@ -163,11 +179,11 @@ type DataGridProps<TRow> = {
   onRangeCopy?: (
     range: CellRange,
     ctx: {
-      getCellValue: (rowIndex: number, columnId: string) => unknown
-      columns: DataGridColumnDef<TRow>[]   // visible columns, visual order
-    }
-  ) => string | null | void
-}
+      getCellValue: (rowIndex: number, columnId: string) => unknown;
+      columns: DataGridColumnDef<TRow>[]; // visible columns, visual order
+    },
+  ) => string | null | void;
+};
 ```
 
 - `onRangeContextMenu` — grid marks/preserves the range, fires the event. Consumer renders their own menu (Copy, Bulk edit, Export, whatever they want).
@@ -213,6 +229,7 @@ Col1\tCol2\tCol3\n
 ### Clear conditions
 
 Range clears on:
+
 - Page change
 - Sort change
 - Filter change (via prop)
@@ -222,6 +239,7 @@ Range clears on:
 - `allowRangeSelection` becoming `false`
 
 Range does NOT clear on:
+
 - Row selection change
 - Column reorder / resize / pin (range follows columns by id, not visual index)
 

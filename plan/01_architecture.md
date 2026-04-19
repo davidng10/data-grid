@@ -32,107 +32,119 @@
 ```ts
 type DataGridProps<TRow> = {
   // Data
-  data: TRow[]
-  rowCount: number            // total rows server-side (for pagination UI)
-  getRowId: (row: TRow) => string
-  isLoading?: boolean
+  data: TRow[];
+  rowCount: number; // total rows server-side (for pagination UI)
+  getRowId: (row: TRow) => string;
+  isLoading?: boolean;
 
   // Columns
-  columns: DataGridColumnDef<TRow>[]
+  columns: DataGridColumnDef<TRow>[];
 
   // Controlled state (each optional; omit for uncontrolled)
-  sorting?: SortingState
-  onSortingChange?: OnChangeFn<SortingState>
+  sorting?: SortingState;
+  onSortingChange?: OnChangeFn<SortingState>;
 
-  pagination?: { pageIndex: number; pageSize: number }
-  onPaginationChange?: OnChangeFn<{ pageIndex: number; pageSize: number }>
+  pagination?: { pageIndex: number; pageSize: number };
+  onPaginationChange?: OnChangeFn<{ pageIndex: number; pageSize: number }>;
 
-  rowSelection?: Record<string, boolean>
-  onRowSelectionChange?: OnChangeFn<Record<string, boolean>>
+  rowSelection?: Record<string, boolean>;
+  onRowSelectionChange?: OnChangeFn<Record<string, boolean>>;
 
-  cellRangeSelection?: CellRangeSelection | null
-  onCellRangeSelectionChange?: OnChangeFn<CellRangeSelection | null>
+  cellRangeSelection?: CellRangeSelection | null;
+  onCellRangeSelectionChange?: OnChangeFn<CellRangeSelection | null>;
 
-  columnVisibility?: Record<string, boolean>
-  onColumnVisibilityChange?: OnChangeFn<Record<string, boolean>>
+  columnVisibility?: Record<string, boolean>;
+  onColumnVisibilityChange?: OnChangeFn<Record<string, boolean>>;
 
-  columnOrder?: string[]
-  onColumnOrderChange?: OnChangeFn<string[]>
+  columnOrder?: string[];
+  onColumnOrderChange?: OnChangeFn<string[]>;
 
-  columnSizing?: Record<string, number>
-  onColumnSizingChange?: OnChangeFn<Record<string, number>>
+  columnSizing?: Record<string, number>;
+  onColumnSizingChange?: OnChangeFn<Record<string, number>>;
 
-  columnPinning?: { left: string[]; right: string[] }
-  onColumnPinningChange?: OnChangeFn<{ left: string[]; right: string[] }>
+  columnPinning?: { left: string[]; right: string[] };
+  onColumnPinningChange?: OnChangeFn<{ left: string[]; right: string[] }>;
 
   // Phase 2 seam — active edit cell + draft value lives above the virtualizer
   // (see 06_cell_rendering.md inline-edit architecture section)
-  activeEditor?: { rowId: string; columnId: string; draftValue: unknown } | null
-  onActiveEditorChange?: OnChangeFn<{ rowId: string; columnId: string; draftValue: unknown } | null>
-  onCommitEdit?: (update: { rowId: string; columnId: string; value: unknown }) => void | Promise<void>
+  activeEditor?: {
+    rowId: string;
+    columnId: string;
+    draftValue: unknown;
+  } | null;
+  onActiveEditorChange?: OnChangeFn<{
+    rowId: string;
+    columnId: string;
+    draftValue: unknown;
+  } | null>;
+  onCommitEdit?: (update: {
+    rowId: string;
+    columnId: string;
+    value: unknown;
+  }) => void | Promise<void>;
 
   // Feature flags (default true unless noted)
-  allowSorting?: boolean
-  allowPinning?: boolean
-  allowReorder?: boolean
-  allowResize?: boolean
-  allowColumnVisibility?: boolean
-  allowRowSelection?: boolean
-  allowRangeSelection?: boolean
-  allowInlineEdit?: boolean        // default FALSE in phase 1
+  allowSorting?: boolean;
+  allowPinning?: boolean;
+  allowReorder?: boolean;
+  allowResize?: boolean;
+  allowColumnVisibility?: boolean;
+  allowRowSelection?: boolean;
+  allowRangeSelection?: boolean;
+  allowInlineEdit?: boolean; // default FALSE in phase 1
 
   // Visual
-  rowHeight?: number               // default 40
-  headerHeight?: number            // default 40
-  overscan?: number                // default 10 rows
+  rowHeight?: number; // default 40
+  headerHeight?: number; // default 40
+  overscan?: number; // default 10 rows
 
   // Consumer passthrough to cell renderers (e.g., onProductClick handlers).
   // There is NO cellRenderers prop — cell components are declared inline on each column
   // via `column.cell`. See `06_cell_rendering.md` for the rationale.
-  cellExtras?: Record<string, unknown>
+  cellExtras?: Record<string, unknown>;
 
   // Callbacks (phase 1)
-  onRangeContextMenu?: (e: MouseEvent, range: CellRange) => void
-  onRangeCopy?: (range: CellRange, tsv: string) => void
+  onRangeContextMenu?: (e: MouseEvent, range: CellRange) => void;
+  onRangeCopy?: (range: CellRange, tsv: string) => void;
 
   // Visual slots
-  emptyState?: ReactNode
-  className?: string
-}
+  emptyState?: ReactNode;
+  className?: string;
+};
 ```
 
 ## Column def
 
 ```ts
 type DataGridColumnDef<TRow, TValue = unknown> = {
-  id: string
-  header: string | ((ctx: HeaderContext<TRow>) => ReactNode)
-  accessor: (row: TRow) => TValue
+  id: string;
+  header: string | ((ctx: HeaderContext<TRow>) => ReactNode);
+  accessor: (row: TRow) => TValue;
 
   // Rendering — NO type enum. Consumers pass a component directly, or rely on TextCell.
-  cell?: CellRenderer<TRow, TValue>   // defaults to TextCell (renders String(value ?? ''))
-  align?: 'left' | 'right' | 'center' // pure styling hint, honored by TextCell
+  cell?: CellRenderer<TRow, TValue>; // defaults to TextCell (renders String(value ?? ''))
+  align?: "left" | "right" | "center"; // pure styling hint, honored by TextCell
 
   // Sizing
-  width?: number        // default 160
-  minWidth?: number     // default 60
-  maxWidth?: number     // default 800
+  width?: number; // default 160
+  minWidth?: number; // default 60
+  maxWidth?: number; // default 800
 
   // Pinning
-  pin?: 'left' | 'right' | null   // initial pin set by the column def (treated as fixed if fixedPin is true)
-  fixedPin?: boolean              // user cannot unpin or change pin side
-  fixedPosition?: boolean         // user cannot reorder (acts as a wall within its zone)
-  fixedVisible?: boolean          // user cannot hide (checkbox disabled + checked in the config modal)
+  pin?: "left" | "right" | null; // initial pin set by the column def (treated as fixed if fixedPin is true)
+  fixedPin?: boolean; // user cannot unpin or change pin side
+  fixedPosition?: boolean; // user cannot reorder (acts as a wall within its zone)
+  fixedVisible?: boolean; // user cannot hide (checkbox disabled + checked in the config modal)
 
   // Phase 2: grid wires dblclick/Enter to enter edit mode only when editable === true
-  editable?: boolean
+  editable?: boolean;
 
   // Metadata
   meta?: {
-    sortable?: boolean            // default true if allowSorting is on
-    [k: string]: unknown
-  }
-}
+    sortable?: boolean; // default true if allowSorting is on
+    [k: string]: unknown;
+  };
+};
 ```
 
 The grid ships **no `type` field** and **no cell registry**. Cells are declared directly on each column via `column.cell`. See `06_cell_rendering.md` for the full rationale and the list of built-in cell components that consumers import and pass in.
@@ -140,6 +152,7 @@ The grid ships **no `type` field** and **no cell registry**. Cells are declared 
 ### Why three separate `fixed*` flags
 
 Your requirements map cleanly to three orthogonal constraints:
+
 - "Product Name is always shown" → `fixedVisible: true`
 - "SKU ID is pinned left by us, user cannot unpin" → `fixedPin: true, pin: 'left'`
 - "Actions column cannot be moved away from the far right" → `fixedPin: true, pin: 'right', fixedPosition: true`
@@ -148,16 +161,16 @@ A column can have any combination (e.g., `fixedVisible: true` but user-movable, 
 
 ## Feature flags — what each disables
 
-| Flag | Default | When `false` |
-|---|---|---|
-| `allowSorting` | true | Header clicks don't sort; sort arrows hidden. |
-| `allowPinning` | true | No pin/unpin options in header menu. Column-def `pin` + `fixedPin` still honored. |
-| `allowReorder` | true | No drag handles; no "move left/right" in header menu. |
-| `allowResize` | true | No resize handles on headers. |
-| `allowColumnVisibility` | true | Config modal still works if opened, but "hide" is not offered in the header menu. |
-| `allowRowSelection` | true | No pinned-left checkbox column injected. |
-| `allowRangeSelection` | true | Mouse drag doesn't start a range; `cellRangeSelection` ignored. |
-| `allowInlineEdit` | **false** | `activeEditor` ignored. Cells never enter edit mode. Flip to `true` in phase 2. |
+| Flag                    | Default   | When `false`                                                                      |
+| ----------------------- | --------- | --------------------------------------------------------------------------------- |
+| `allowSorting`          | true      | Header clicks don't sort; sort arrows hidden.                                     |
+| `allowPinning`          | true      | No pin/unpin options in header menu. Column-def `pin` + `fixedPin` still honored. |
+| `allowReorder`          | true      | No drag handles; no "move left/right" in header menu.                             |
+| `allowResize`           | true      | No resize handles on headers.                                                     |
+| `allowColumnVisibility` | true      | Config modal still works if opened, but "hide" is not offered in the header menu. |
+| `allowRowSelection`     | true      | No pinned-left checkbox column injected.                                          |
+| `allowRangeSelection`   | true      | Mouse drag doesn't start a range; `cellRangeSelection` ignored.                   |
+| `allowInlineEdit`       | **false** | `activeEditor` ignored. Cells never enter edit mode. Flip to `true` in phase 2.   |
 
 ## Data flow
 
@@ -188,16 +201,16 @@ Every durable state change round-trips through the page. Transient state round-t
 
 ### Inventory
 
-| State | Owner | Change frequency |
-|---|---|---|
-| `view` (page, sort, filters) | Page (external to the grid) | Low |
-| `columnConfig` (visibility, order, sizing, pinning) | Page (external) | Low; medium during resize drag |
-| `rowSelection` | `useDataGrid` internal | Low (click-driven) |
-| `cellRangeSelection` | `useDataGrid` internal | **High during drag** (every mousemove) |
-| `activeEditor` | `useDataGrid` internal | Low (enter/exit); `draftValue` changes per keystroke but only one cell cares |
-| Scroll metrics (for sticky shadows) | `<DataGrid />` local ref | High but only the shadow divs re-render |
-| TanStack Table instance | `<DataGrid />` local | Derived from the above |
-| Cell-local UI (date picker open, etc.) | Cell component `useState` | Local, never leaks out |
+| State                                               | Owner                       | Change frequency                                                             |
+| --------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
+| `view` (page, sort, filters)                        | Page (external to the grid) | Low                                                                          |
+| `columnConfig` (visibility, order, sizing, pinning) | Page (external)             | Low; medium during resize drag                                               |
+| `rowSelection`                                      | `useDataGrid` internal      | Low (click-driven)                                                           |
+| `cellRangeSelection`                                | `useDataGrid` internal      | **High during drag** (every mousemove)                                       |
+| `activeEditor`                                      | `useDataGrid` internal      | Low (enter/exit); `draftValue` changes per keystroke but only one cell cares |
+| Scroll metrics (for sticky shadows)                 | `<DataGrid />` local ref    | High but only the shadow divs re-render                                      |
+| TanStack Table instance                             | `<DataGrid />` local        | Derived from the above                                                       |
+| Cell-local UI (date picker open, etc.)              | Cell component `useState`   | Local, never leaks out                                                       |
 
 ### Prop drilling depth
 
@@ -217,20 +230,25 @@ One `DataGridContext` holds state that rarely or never changes during a render p
 
 ```ts
 type DataGridContextValue<TRow> = {
-  table: Table<TRow>               // the TanStack Table instance
-  cellExtras: Record<string, unknown>  // consumer passthrough (onProductClick, etc.)
-  featureFlags: {                  // the allow* flags, resolved
-    sorting: boolean
-    pinning: boolean
-    reorder: boolean
-    resize: boolean
-    columnVisibility: boolean
-    rowSelection: boolean
-    rangeSelection: boolean
-    inlineEdit: boolean
-  }
-  scrollMetricsRef: RefObject<{ scrollLeft: number; scrollWidth: number; clientWidth: number }>
-}
+  table: Table<TRow>; // the TanStack Table instance
+  cellExtras: Record<string, unknown>; // consumer passthrough (onProductClick, etc.)
+  featureFlags: {
+    // the allow* flags, resolved
+    sorting: boolean;
+    pinning: boolean;
+    reorder: boolean;
+    resize: boolean;
+    columnVisibility: boolean;
+    rowSelection: boolean;
+    rangeSelection: boolean;
+    inlineEdit: boolean;
+  };
+  scrollMetricsRef: RefObject<{
+    scrollLeft: number;
+    scrollWidth: number;
+    clientWidth: number;
+  }>;
+};
 ```
 
 - Provided at `<DataGrid />` top level.
@@ -256,7 +274,7 @@ This is the only state-management pattern we'd add later. **Not shipping it in p
 
 ### Pattern — reading TanStack state in memoed leaves
 
-TanStack Table keeps `Row` and `Cell` refs stable across many state changes. Methods on them (`cell.column.getSize()`, `cell.column.getIsPinned()`, `row.getIsSelected()`, etc.) return *live* state but don't invalidate the ref they hang off. A memoed component that calls these methods inside its own render will silently stale whenever its memo skips — the "stable" ref looks unchanged to `React.memo`, the render short-circuits, and the stale-at-last-render value stays on screen.
+TanStack Table keeps `Row` and `Cell` refs stable across many state changes. Methods on them (`cell.column.getSize()`, `cell.column.getIsPinned()`, `row.getIsSelected()`, etc.) return _live_ state but don't invalidate the ref they hang off. A memoed component that calls these methods inside its own render will silently stale whenever its memo skips — the "stable" ref looks unchanged to `React.memo`, the render short-circuits, and the stale-at-last-render value stays on screen.
 
 **Rule:** do not call `get*()` methods on TanStack `Row` / `Cell` / `Column` objects inside a memoed component. Read them at an un-memoed boundary and pass the result in as explicit props. The props then become the authoritative memo-invalidation signal.
 
@@ -281,6 +299,7 @@ cells.map((cell) => {
 `BodyCell` (memoed) then reads `size`, `pinned`, `pinLeft`, `pinRight` from props, never from `cell.column.*`. Memo invalidates correctly on sizing / pinning changes; memo still short-circuits on unrelated state changes (e.g. another column resizing).
 
 **Applies to:**
+
 - `column.getSize()` — changes every mousemove during resize in `onChange` mode.
 - `column.getIsPinned()`, `getStart()`, `getAfter()` — change on pin/unpin and on resize of any column in the same pinned zone.
 - `row.getIsSelected()` (session 4) — changes on selection toggle.
@@ -288,8 +307,9 @@ cells.map((cell) => {
 - Any future `get*()` method on `Row`/`Cell`/`Column` that reflects live table state.
 
 **Does NOT apply to:**
+
 - Values from `DataGridContext` (`cellExtras`, `featureFlags`) — stable by design; read via `useDataGridContext()` in the leaf.
-- `cell.getValue()` — cell refs *do* update when row data changes, so the memoed leaf naturally re-renders.
+- `cell.getValue()` — cell refs _do_ update when row data changes, so the memoed leaf naturally re-renders.
 
 **Reminder on where the un-memoed boundary lives:** it's `VirtualRow` (and anything similarly row-scoped). Virt caps the number of these mounted at any time, so skipping memo at that layer is cheap. Don't un-memoize the cell itself — the cell is the leaf where memo pays rent (especially for session 4's per-cell range flags).
 

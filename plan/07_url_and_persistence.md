@@ -16,12 +16,12 @@ One optional peer hook for the universally-useful case: **column config persiste
 function useLocalStorageColumnConfig(
   tableInstanceId: string,
   options?: {
-    maxVisibleColumns?: number                          // default 40; enforced on read and on set
-    fixedVisibleColumnIds?: string[]                    // ids forced to visible=true on read
-    fixedPins?: { left?: string[]; right?: string[] }   // positions enforced on read
-    onWarn?: (message: string) => void                  // injected notification; defaults to console.warn
-  }
-): [ColumnConfigState, (next: ColumnConfigState) => void]
+    maxVisibleColumns?: number; // default 40; enforced on read and on set
+    fixedVisibleColumnIds?: string[]; // ids forced to visible=true on read
+    fixedPins?: { left?: string[]; right?: string[] }; // positions enforced on read
+    onWarn?: (message: string) => void; // injected notification; defaults to console.warn
+  },
+): [ColumnConfigState, (next: ColumnConfigState) => void];
 ```
 
 **Storage key:** `datagrid:config:<tableInstanceId>:v1`
@@ -30,12 +30,12 @@ function useLocalStorageColumnConfig(
 
 ```ts
 type ColumnConfigState = {
-  columnVisibility: Record<string, boolean>
-  columnOrder: string[]
-  columnSizing: Record<string, number>
-  columnPinning: { left: string[]; right: string[] }
-  schemaVersion: 1
-}
+  columnVisibility: Record<string, boolean>;
+  columnOrder: string[];
+  columnSizing: Record<string, number>;
+  columnPinning: { left: string[]; right: string[] };
+  schemaVersion: 1;
+};
 ```
 
 **Validation on read:**
@@ -63,7 +63,10 @@ Pattern:
 ```tsx
 // Page-owned URL view state hook. The grid doesn't care what's inside —
 // it just needs [view, setView] that behaves like controlled React state.
-function useMyUrlViewState(): [DataGridView<MyFilters>, (next: DataGridView<MyFilters>) => void] {
+function useMyUrlViewState(): [
+  DataGridView<MyFilters>,
+  (next: DataGridView<MyFilters>) => void,
+] {
   // 1. Parse URL on mount (and on popstate)
   // 2. Reconcile with whatever storage backend you have (localStorage opaque id, BE view service, raw params, or a mix)
   // 3. On state change, write to URL and backend
@@ -71,13 +74,16 @@ function useMyUrlViewState(): [DataGridView<MyFilters>, (next: DataGridView<MyFi
 }
 
 // Usage in page:
-const [view, setView] = useMyUrlViewState()
-const [columnConfig, setColumnConfig] = useLocalStorageColumnConfig('my-grid-v1')
+const [view, setView] = useMyUrlViewState();
+const [columnConfig, setColumnConfig] =
+  useLocalStorageColumnConfig("my-grid-v1");
 const grid = useDataGrid({
-  view, onViewChange: setView,
-  columnConfig, onColumnConfigChange: setColumnConfig,
+  view,
+  onViewChange: setView,
+  columnConfig,
+  onColumnConfigChange: setColumnConfig,
   rowCount,
-})
+});
 ```
 
 The page's URL hook does NOT re-implement transition rules (page reset on sort, selection clear on filter). Those live in `useDataGrid`'s semantic setters. The URL layer is a dumb sink and source for the `view` object.
