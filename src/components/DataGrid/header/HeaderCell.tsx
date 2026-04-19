@@ -1,6 +1,11 @@
 import { memo } from "react";
 import { flexRender } from "@tanstack/react-table";
 import clsx from "clsx";
+
+import { useDataGridContext } from "..//useDataGridContext";
+import { HeaderMenu } from "./HeaderMenu";
+import { ResizeHandle } from "./ResizeHandle";
+
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import type { Header } from "@tanstack/react-table";
@@ -9,10 +14,6 @@ import type {
   MouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
-
-import { useDataGridContext } from "..//useDataGridContext";
-import { HeaderMenu } from "./HeaderMenu";
-import { ResizeHandle } from "./ResizeHandle";
 import type { DataGridColumnDef } from "../DataGrid.types";
 
 import styles from "../DataGrid.module.css";

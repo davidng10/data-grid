@@ -10,10 +10,11 @@ import {
   SortableContext,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import type { CollisionDetection, DragEndEvent } from "@dnd-kit/core";
-import type { Header, Table } from "@tanstack/react-table";
 
 import { SortableHeaderCell } from "./SortableHeaderCell";
+
+import type { CollisionDetection, DragEndEvent } from "@dnd-kit/core";
+import type { Header, Table } from "@tanstack/react-table";
 import type { ColumnPinningState, DataGridColumnDef } from "../DataGrid.types";
 
 import styles from "../DataGrid.module.css";

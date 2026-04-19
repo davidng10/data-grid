@@ -6,12 +6,12 @@ import {
   useRef,
   useState,
 } from "react";
+
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
   RefObject,
 } from "react";
-
 import type {
   CellRange,
   CellRangeSelection,

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-import type { MouseEvent } from "react";
 
 import { useHeaderSelectionContext } from "../selection/useHeaderSelectionContext";
+
+import type { MouseEvent } from "react";
 
 import styles from "../DataGrid.module.css";
 

@@ -1,32 +1,29 @@
-import type { Row } from "@tanstack/react-table";
-
 import { SELECT_COLUMN_ID } from "../selection/constants";
 import { isCellInRange } from "../selection/useCellRangeSelection";
 import { BodyCell } from "./BodyCell";
+
+import type { Row } from "@tanstack/react-table";
 import type { CellRangeSelection } from "../DataGrid.types";
 
 import styles from "../DataGrid.module.css";
 
-type VirtualRowProps<TRow> = {
+type BodyRowProps<TRow> = {
   row: Row<TRow>;
   top: number;
   height: number;
   totalWidth: number;
-  // Live TanStack / range state read at this un-memoed boundary and forwarded
-  // as explicit props to BodyCell (memoed). See plan/01 "Pattern — reading
-  // TanStack state in memoed leaves".
   cellRangeSelection: CellRangeSelection | null;
   visualColumnIds: string[];
 };
 
-export function VirtualRow<TRow>({
+export function BodyRow<TRow>({
   row,
   top,
   height,
   totalWidth,
   cellRangeSelection,
   visualColumnIds,
-}: VirtualRowProps<TRow>) {
+}: BodyRowProps<TRow>) {
   const cells = row.getVisibleCells();
   const isSelected = row.getIsSelected();
   return (

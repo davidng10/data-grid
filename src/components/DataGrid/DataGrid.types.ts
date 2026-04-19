@@ -3,7 +3,7 @@ import type {
   HeaderContext as TSTHeaderContext,
   SortingState as TSTSortingState,
 } from "@tanstack/react-table";
-import type { ComponentType, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 export type SortingState = TSTSortingState;
 
@@ -12,7 +12,7 @@ export type HeaderContext<TRow, TValue = unknown> = TSTHeaderContext<
   TValue
 >;
 
-export type Align = "left" | "right" | "center";
+export type DataGridCellAlign = "left" | "right" | "center";
 
 export type PaginationState = {
   pageIndex: number;
@@ -68,26 +68,22 @@ export type ColumnConfigState = {
 export type DataGridColumnDef<TRow, TValue = unknown> = {
   id: string;
   header: string | ((ctx: HeaderContext<TRow, TValue>) => ReactNode);
-  accessor: (row: TRow) => TValue;
-
-  cell?: CellRenderer<TRow, TValue>;
-  align?: Align;
-
+  align?: DataGridCellAlign;
   width?: number;
   minWidth?: number;
   maxWidth?: number;
-
   pin?: "left" | "right" | null;
   fixedPin?: boolean;
-  fixedPosition?: boolean;
   fixedVisible?: boolean;
-
+  fixedPosition?: boolean;
   editable?: boolean;
-
   meta?: {
     sortable?: boolean;
     [k: string]: unknown;
   };
+
+  accessor: (row: TRow) => TValue;
+  render?: (props: DataGridCellProps<TRow, TValue>) => ReactNode;
 };
 
 export type DataGridCellProps<TRow, TValue = unknown> = {
@@ -96,26 +92,19 @@ export type DataGridCellProps<TRow, TValue = unknown> = {
   rowIndex: number;
   column: DataGridColumnDef<TRow, TValue>;
   value: TValue;
-  align: Align;
-
+  align: DataGridCellAlign;
   isEditing: boolean;
   draftValue: TValue | undefined;
-  setDraftValue: (next: TValue) => void;
-  commitEdit: () => void;
-  cancelEdit: () => void;
-
   isInRange: boolean;
   isRangeAnchor: boolean;
   isRangeFocus: boolean;
-
   isSelected: boolean;
-
   extras: Record<string, unknown>;
-};
 
-export type CellRenderer<TRow = unknown, TValue = unknown> = ComponentType<
-  DataGridCellProps<TRow, TValue>
->;
+  commitEdit: () => void;
+  cancelEdit: () => void;
+  setDraftValue: (next: TValue) => void;
+};
 
 export type DataGridProps<TRow> = {
   data: TRow[];

@@ -1,7 +1,8 @@
 import { memo } from "react";
-import type { MouseEvent } from "react";
 
 import { useDataGridContext } from "../useDataGridContext";
+
+import type { MouseEvent } from "react";
 import type { DataGridCellProps } from "../DataGrid.types";
 
 import styles from "../DataGrid.module.css";

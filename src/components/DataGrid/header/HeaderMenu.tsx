@@ -1,12 +1,13 @@
 import { memo, useRef, useState } from "react";
 
+import { DropdownMenu } from "../DropdownMenu";
+import { useDataGridContext } from "../useDataGridContext";
+
 import type { Header, Table } from "@tanstack/react-table";
 import type { MouseEvent } from "react";
 import type { ColumnPinningState, DataGridColumnDef } from "../DataGrid.types";
 import type { DropdownMenuItem } from "../DropdownMenu";
 
-import { DropdownMenu } from "../DropdownMenu";
-import { useDataGridContext } from "../useDataGridContext";
 import styles from "../DataGrid.module.css";
 
 type HeaderMenuProps<TRow> = {

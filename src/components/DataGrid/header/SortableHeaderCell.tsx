@@ -1,7 +1,8 @@
 import { useSortable } from "@dnd-kit/sortable";
-import type { Header } from "@tanstack/react-table";
 
 import { HeaderCell } from "./HeaderCell";
+
+import type { Header } from "@tanstack/react-table";
 
 type SortDir = false | "asc" | "desc";
 

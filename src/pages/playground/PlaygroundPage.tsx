@@ -1,6 +1,15 @@
 import { useMemo, useRef, useState } from "react";
 import { Button, Checkbox, Modal, Tooltip, message } from "antd";
 
+import type {
+  CellRange,
+  DataGridCellProps,
+  DataGridColumnDef,
+  DataGridHandle,
+  DataGridView,
+  SortingState,
+} from "../../components/DataGrid";
+
 import {
   DataGrid,
   TextCell,
@@ -8,14 +17,6 @@ import {
 } from "../../components/DataGrid";
 import { useDataGrid } from "../../components/DataGrid/useDataGrid";
 import { useLocalStorageColumnConfig } from "../../hooks/useLocalStorageColumnConfig";
-import type {
-  CellRange,
-  CellRenderer,
-  DataGridColumnDef,
-  DataGridHandle,
-  DataGridView,
-  SortingState,
-} from "../../components/DataGrid";
 
 type Row = {
   id: string;
@@ -88,7 +89,7 @@ function applyPagination(
   return rows.slice(start, start + pageSize);
 }
 
-const EmailLinkCell: CellRenderer<Row, string> = ({ value }) => {
+const renderEmailLink = ({ value }: DataGridCellProps<Row, string>) => {
   const text = value ?? "";
   return (
     <a
@@ -102,7 +103,7 @@ const EmailLinkCell: CellRenderer<Row, string> = ({ value }) => {
   );
 };
 
-const ActionsCell: CellRenderer<Row, string> = ({ rowId }) => (
+const renderActions = ({ rowId }: DataGridCellProps<Row, string>) => (
   <button
     type="button"
     onClick={(e) => {
@@ -140,7 +141,7 @@ const COLUMNS: DataGridColumnDef<Row>[] = [
     id: "name",
     header: "Name",
     accessor: (r) => r.name,
-    cell: TextCell,
+    render: TextCell,
     width: 180,
     fixedPosition: true,
   },
@@ -148,7 +149,7 @@ const COLUMNS: DataGridColumnDef<Row>[] = [
     id: "age",
     header: "Age",
     accessor: (r) => r.age,
-    cell: TextCell,
+    render: TextCell,
     align: "right",
     width: 90,
   },
@@ -156,14 +157,14 @@ const COLUMNS: DataGridColumnDef<Row>[] = [
     id: "status",
     header: "Status",
     accessor: (r) => r.status,
-    cell: TextCell,
+    render: TextCell,
     width: 120,
   },
   {
     id: "email",
     header: "Email",
     accessor: (r) => r.email,
-    cell: EmailLinkCell as CellRenderer<Row, unknown>,
+    render: renderEmailLink,
     width: 260,
     meta: { sortable: false },
   },
@@ -171,21 +172,21 @@ const COLUMNS: DataGridColumnDef<Row>[] = [
     id: "city",
     header: "City",
     accessor: (r) => r.city,
-    cell: TextCell,
+    render: TextCell,
     width: 140,
   },
   {
     id: "department",
     header: "Department",
     accessor: (r) => r.department,
-    cell: TextCell,
+    render: TextCell,
     width: 140,
   },
   {
     id: "joined",
     header: "Joined",
     accessor: (r) => r.joined,
-    cell: TextCell,
+    render: TextCell,
     width: 130,
   },
   {
@@ -200,7 +201,7 @@ const COLUMNS: DataGridColumnDef<Row>[] = [
     id: "actions",
     header: "Actions",
     accessor: (r) => r.actions,
-    cell: ActionsCell as CellRenderer<Row, unknown>,
+    render: renderActions,
     width: 120,
     pin: "right",
     fixedPin: true,
@@ -228,6 +229,7 @@ export const PlaygroundPage = () => {
     sorting: [],
     filters: {},
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const [columnConfig, setColumnConfig] = useLocalStorageColumnConfig(
     "playground-v2",
@@ -284,7 +286,6 @@ export const PlaygroundPage = () => {
     fixedPositionColumnIds: FIXED_POSITION,
     fixedPinnedLeft: FIXED_PIN_LEFT,
     fixedPinnedRight: FIXED_PIN_RIGHT,
-    onWarn: (msg) => message.warning(msg),
   });
 
   const gridRef = useRef<DataGridHandle | null>(null);
@@ -328,6 +329,10 @@ export const PlaygroundPage = () => {
     );
   };
 
+  const toggleLoading = () => {
+    setIsLoading((prev) => !prev);
+  };
+
   return (
     <div
       style={{
@@ -338,16 +343,7 @@ export const PlaygroundPage = () => {
       }}
     >
       <div style={{ flexShrink: 0, padding: "16px 16px 8px" }}>
-        <h1 style={{ margin: 0, fontSize: 20 }}>
-          DataGrid playground — session 4
-        </h1>
-        <p style={{ color: "#666", margin: "4px 0 12px" }}>
-          Row + range selection, copy via <code>defaultRangeToTSV</code>,
-          right-click context-menu hook, sticky scroll shadows, loading / empty
-          / refetch states. Drag a range; Ctrl/Cmd+C; arrow keys after clicking
-          a cell.
-        </p>
-
+        <h1 style={{ margin: 0, fontSize: 20 }}>DataGrid playground</h1>
         <div
           style={{
             display: "flex",
@@ -391,7 +387,9 @@ export const PlaygroundPage = () => {
           </label>
 
           <span style={{ width: 12 }} />
-
+          <Button size="small" onClick={toggleLoading}>
+            {isLoading ? "Stop loading" : "Start loading"}
+          </Button>
           <Button
             size="small"
             onClick={() => grid.setFilters({ status: "active" })}
@@ -461,6 +459,7 @@ export const PlaygroundPage = () => {
           columns={COLUMNS}
           onRangeContextMenu={onRangeContextMenu}
           onRangeCopy={onRangeCopy}
+          isLoading={isLoading}
         />
       </div>
 

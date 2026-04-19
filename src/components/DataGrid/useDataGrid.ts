@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import type { OnChangeFn } from "@tanstack/react-table";
 
+import type { OnChangeFn } from "@tanstack/react-table";
 import type {
   ActiveEditorState,
   CellRangeSelection,
@@ -44,7 +44,6 @@ export type UseDataGridOptions<TFilters> = {
   allowRangeSelection?: boolean;
   allowInlineEdit?: boolean;
 
-  onWarn?: (message: string) => void;
 };
 
 export type UseDataGridResult<TRow, TFilters> = {
@@ -87,20 +86,11 @@ export function useDataGrid<TRow, TFilters>(
     allowRowSelection = true,
     allowRangeSelection = true,
     allowInlineEdit = false,
-    onWarn,
   } = options;
 
-  const warn = useCallback(
-    (message: string) => {
-      if (onWarn) onWarn(message);
-      else console.warn(message);
-    },
-    [onWarn],
-  );
-
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [cellRangeSelection, setCellRangeSelection] =
-    useState<CellRangeSelection | null>(null);
+  useState<CellRangeSelection | null>(null);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [activeEditor, setActiveEditor] = useState<ActiveEditorState>(null);
 
   // --- Semantic setters: transition rules encoded here ---
@@ -139,9 +129,9 @@ export function useDataGrid<TRow, TFilters>(
     [view, onViewChange],
   );
 
-  // --- Grid-facing change handlers route through the semantic setters ---
+  // --- TanStack OnChangeFn adapters: resolve updater, then delegate ---
 
-  const onSortingChangeForGrid: OnChangeFn<SortingState> = useCallback(
+  const onSortingChange: OnChangeFn<SortingState> = useCallback(
     (updater) => {
       const next = resolveUpdater(updater, view.sorting);
       setSort(next);
@@ -149,7 +139,7 @@ export function useDataGrid<TRow, TFilters>(
     [view.sorting, setSort],
   );
 
-  const onPaginationChangeForGrid: OnChangeFn<PaginationState> = useCallback(
+  const onPaginationChange: OnChangeFn<PaginationState> = useCallback(
     (updater) => {
       const prev: PaginationState = {
         pageIndex: view.pageIndex,
@@ -167,28 +157,13 @@ export function useDataGrid<TRow, TFilters>(
     [view.pageIndex, view.pageSize, setPage, setPageSize],
   );
 
-  const onRowSelectionChangeForGrid: OnChangeFn<Record<string, boolean>> =
-    useCallback((updater) => {
-      setRowSelection((prev) => resolveUpdater(updater, prev));
-    }, []);
-
-  const onCellRangeSelectionChangeForGrid: OnChangeFn<CellRangeSelection | null> =
-    useCallback((updater) => {
-      setCellRangeSelection((prev) => resolveUpdater(updater, prev));
-    }, []);
-
-  const onActiveEditorChangeForGrid: OnChangeFn<ActiveEditorState> =
-    useCallback((updater) => {
-      setActiveEditor((prev) => resolveUpdater(updater, prev));
-    }, []);
-
-  const onColumnVisibilityChangeForGrid: OnChangeFn<Record<string, boolean>> =
+  const onColumnVisibilityChange: OnChangeFn<Record<string, boolean>> =
     useCallback(
       (updater) => {
         const next = resolveUpdater(updater, columnConfig.columnVisibility);
         const trueCount = Object.values(next).filter(Boolean).length;
         if (trueCount > maxVisibleColumns) {
-          warn(`Maximum ${maxVisibleColumns} columns visible`);
+          console.warn(`Maximum ${maxVisibleColumns} columns visible`);
           return;
         }
         const enforced = { ...next };
@@ -203,26 +178,25 @@ export function useDataGrid<TRow, TFilters>(
         maxVisibleColumns,
         fixedVisibleColumnIds,
         onColumnConfigChange,
-        warn,
       ],
     );
 
-  const onColumnOrderChangeForGrid: OnChangeFn<string[]> = useCallback(
+  const onColumnOrderChange: OnChangeFn<string[]> = useCallback(
     (updater) => {
       const next = resolveUpdater(updater, columnConfig.columnOrder);
       const fixed = fixedPositionColumnIds ?? [];
       for (const id of fixed) {
         if (columnConfig.columnOrder.indexOf(id) !== next.indexOf(id)) {
-          warn(`Column "${id}" is fixed-position and cannot be reordered`);
+          console.warn(`Column "${id}" is fixed-position and cannot be reordered`);
           return;
         }
       }
       onColumnConfigChange({ ...columnConfig, columnOrder: next });
     },
-    [columnConfig, fixedPositionColumnIds, onColumnConfigChange, warn],
+    [columnConfig, fixedPositionColumnIds, onColumnConfigChange],
   );
 
-  const onColumnSizingChangeForGrid: OnChangeFn<Record<string, number>> =
+  const onColumnSizingChange: OnChangeFn<Record<string, number>> =
     useCallback(
       (updater) => {
         const next = resolveUpdater(updater, columnConfig.columnSizing);
@@ -231,7 +205,7 @@ export function useDataGrid<TRow, TFilters>(
       [columnConfig, onColumnConfigChange],
     );
 
-  const onColumnPinningChangeForGrid: OnChangeFn<ColumnPinningState> =
+  const onColumnPinningChange: OnChangeFn<ColumnPinningState> =
     useCallback(
       (updater) => {
         const next = resolveUpdater(updater, columnConfig.columnPinning);
@@ -258,8 +232,6 @@ export function useDataGrid<TRow, TFilters>(
       [columnConfig, fixedPinnedLeft, fixedPinnedRight, onColumnConfigChange],
     );
 
-  // --- gridProps assembly ---
-
   const pagination = useMemo<PaginationState>(
     () => ({ pageIndex: view.pageIndex, pageSize: view.pageSize }),
     [view.pageIndex, view.pageSize],
@@ -270,31 +242,31 @@ export function useDataGrid<TRow, TFilters>(
       rowCount,
 
       sorting: view.sorting,
-      onSortingChange: onSortingChangeForGrid,
+      onSortingChange,
 
       pagination,
-      onPaginationChange: onPaginationChangeForGrid,
+      onPaginationChange,
 
       rowSelection,
-      onRowSelectionChange: onRowSelectionChangeForGrid,
+      onRowSelectionChange: setRowSelection,
 
       cellRangeSelection,
-      onCellRangeSelectionChange: onCellRangeSelectionChangeForGrid,
+      onCellRangeSelectionChange: setCellRangeSelection,
 
       columnVisibility: columnConfig.columnVisibility,
-      onColumnVisibilityChange: onColumnVisibilityChangeForGrid,
+      onColumnVisibilityChange,
 
       columnOrder: columnConfig.columnOrder,
-      onColumnOrderChange: onColumnOrderChangeForGrid,
+      onColumnOrderChange,
 
       columnSizing: columnConfig.columnSizing,
-      onColumnSizingChange: onColumnSizingChangeForGrid,
+      onColumnSizingChange,
 
       columnPinning: columnConfig.columnPinning,
-      onColumnPinningChange: onColumnPinningChangeForGrid,
+      onColumnPinningChange,
 
       activeEditor,
-      onActiveEditorChange: onActiveEditorChangeForGrid,
+      onActiveEditorChange: setActiveEditor,
 
       allowSorting,
       allowPinning,
@@ -324,15 +296,12 @@ export function useDataGrid<TRow, TFilters>(
       allowRowSelection,
       allowRangeSelection,
       allowInlineEdit,
-      onSortingChangeForGrid,
-      onPaginationChangeForGrid,
-      onRowSelectionChangeForGrid,
-      onCellRangeSelectionChangeForGrid,
-      onColumnVisibilityChangeForGrid,
-      onColumnOrderChangeForGrid,
-      onColumnSizingChangeForGrid,
-      onColumnPinningChangeForGrid,
-      onActiveEditorChangeForGrid,
+      onSortingChange,
+      onPaginationChange,
+      onColumnVisibilityChange,
+      onColumnOrderChange,
+      onColumnSizingChange,
+      onColumnPinningChange,
     ],
   );
 

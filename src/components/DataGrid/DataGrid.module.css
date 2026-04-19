@@ -319,76 +319,44 @@
   animation: dgRefetchBar 1.2s linear infinite;
 }
 
-/* ----- Loading skeleton ----- */
-
-@keyframes dgSkeletonShimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-.skeletonRow {
-  position: absolute;
-  left: 0;
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--dg-border-soft);
-  background: var(--dg-row-bg);
-  overflow: hidden;
-}
-
-.skeletonShimmer {
-  width: 100%;
-  height: 14px;
-  margin: 0 12px;
-  border-radius: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.04) 25%,
-    rgba(0, 0, 0, 0.08) 50%,
-    rgba(0, 0, 0, 0.04) 75%
-  );
-  background-size: 200% 100%;
-  animation: dgSkeletonShimmer 1.4s linear infinite;
-}
-
 /* ----- Sticky scroll shadows ----- */
 
-/* The shadow is rendered as a thin vertical gradient overlay just inside the
- * pinned edge of the scroll container. Pure CSS — toggled by classes the
- * grid sets from a single scroll listener. */
+/* A 0×0 sticky anchor pinned at the scroll container's viewport top-left.
+ * The browser compositor keeps it glued there during scroll (no JS involved),
+ * so absolute-positioned children follow scroll without lag. */
 
-.rootShadowLeft .scrollContainer::before,
-.rootShadowRight .scrollContainer::after {
-  content: "";
+.shadowAnchor {
   position: sticky;
   top: 0;
-  width: 8px;
-  height: 100%;
-  pointer-events: none;
+  left: 0;
+  width: 0;
+  height: 0;
   z-index: 4;
+  pointer-events: none;
 }
 
-/* The above approach with ::before/::after on a flex parent is fiddly across
- * browsers. We use a simpler approach: render the shadow as a wider box-shadow
- * on pinned cells when the parent has the shadow class. */
+/* One tall 12px-wide overlay per pinned edge — single continuous element
+ * avoids the horizontal banding that per-cell box-shadows produce at row
+ * joins. `left` and `height` come from inline style, driven by viewport
+ * state local to ColumnShadowAnchor. */
 
-.rootShadowLeft .headerCellPinnedLeft,
-.rootShadowLeft .bodyCellPinnedLeft {
-  box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.10);
-  clip-path: inset(0 -8px 0 0);
+.bodyShadowLeft,
+.bodyShadowRight {
+  position: absolute;
+  top: 0;
+  width: 12px;
+  pointer-events: none;
+  transition: opacity 120ms ease;
 }
 
-.rootShadowRight .headerCellPinnedRight,
-.rootShadowRight .bodyCellPinnedRight {
-  box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.10);
-  clip-path: inset(0 0 0 -8px);
+.bodyShadowLeft {
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0));
 }
 
-.rootShadowLeft .scrollContainer::before,
-.rootShadowRight .scrollContainer::after {
-  display: none;
+.bodyShadowRight {
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0));
+}
+
+.bodyShadowHidden {
+  opacity: 0;
 }

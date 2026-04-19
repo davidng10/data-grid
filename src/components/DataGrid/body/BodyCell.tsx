@@ -1,26 +1,22 @@
 import { memo } from "react";
 import clsx from "clsx";
+
 import type { Cell } from "@tanstack/react-table";
 import type { CSSProperties, MouseEvent } from "react";
-
-import { TextCell } from "../cells/TextCell";
-import { useDataGridContext } from "../useDataGridContext";
 import type {
-  Align,
-  CellRenderer,
+  DataGridCellAlign,
   DataGridCellProps,
   DataGridColumnDef,
 } from "../DataGrid.types";
 
+import { TextCell } from "../cells/TextCell";
+import { useDataGridContext } from "../useDataGridContext";
 import styles from "../DataGrid.module.css";
 
 type BodyCellProps<TRow> = {
   cell: Cell<TRow, unknown>;
   rowIndex: number;
   rowId: string;
-  // Live TanStack / range / selection state — passed in from VirtualRow (the
-  // un-memoed boundary). Reading these off `cell.column.*` or
-  // `cell.row.getIsSelected()` here would silently stale on memo skip.
   size: number;
   pinned: "left" | "right" | false;
   pinLeft: number;
@@ -57,11 +53,8 @@ function BodyCellRender<TRow>({
     | undefined;
   const dgColumn = meta?.dataGridColumn;
 
-  // `any` generics bridge the bivariance gap between column-specific
-  // renderers and the generic TextCell fallback.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Renderer: CellRenderer<any, any> = dgColumn?.cell ?? TextCell;
-  const align: Align = dgColumn?.align ?? "left";
+  const render = dgColumn?.render ?? TextCell;
+  const align: DataGridCellAlign = dgColumn?.align ?? "left";
   const value = cell.getValue();
   const row = cell.row.original;
   const pinStyle: CSSProperties =
@@ -125,12 +118,12 @@ function BodyCellRender<TRow>({
       onMouseEnter={onMouseEnter}
       onContextMenu={onContextMenu}
     >
-      <Renderer {...cellProps} />
+      {render(cellProps)}
     </div>
   );
 }
 
-function alignToFlex(align: Align): string {
+function alignToFlex(align: DataGridCellAlign): string {
   switch (align) {
     case "right":
       return "flex-end";

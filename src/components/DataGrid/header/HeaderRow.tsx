@@ -1,8 +1,8 @@
-import type { Header } from "@tanstack/react-table";
-
 import { useDataGridContext } from "../useDataGridContext";
 import { ColumnReorderContext } from "./ColumnReorderContext";
 import { HeaderCell } from "./HeaderCell";
+
+import type { Header } from "@tanstack/react-table";
 
 import styles from "../DataGrid.module.css";
 

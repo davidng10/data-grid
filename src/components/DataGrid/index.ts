@@ -4,13 +4,12 @@ export { defaultRangeToTSV } from "./selection/defaultRangeToTSV";
 
 export type {
   ActiveEditorState,
-  Align,
   CellRange,
   CellRangeEndpoint,
   CellRangeSelection,
-  CellRenderer,
   ColumnConfigState,
   ColumnPinningState,
+  DataGridCellAlign,
   DataGridCellProps,
   DataGridColumnDef,
   DataGridHandle,

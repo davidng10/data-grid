@@ -3,14 +3,23 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
+
+import { DataGridContext } from "./DataGridContext";
+import { BodyRow } from "./body/BodyRow";
+import { OverlayColumnShadow } from "./body/OverlapColumnShadow";
+import { CheckboxCell } from "./cells/CheckboxCell";
+import { HeaderCheckbox } from "./header/HeaderCheckbox";
+import { HeaderRow } from "./header/HeaderRow";
+import { HeaderSelectionContext } from "./selection/HeaderSelectionContext";
+import { SELECT_COLUMN_ID } from "./selection/constants";
+import { useCellRangeSelection } from "./selection/useCellRangeSelection";
+import { useRowSelection } from "./selection/useRowSelection";
 
 import type { ColumnDef, OnChangeFn } from "@tanstack/react-table";
 import type { ForwardedRef, ReactElement } from "react";
@@ -24,20 +33,8 @@ import type {
   DataGridFeatureFlags,
 } from "./DataGridContext";
 
-import { DataGridContext } from "./DataGridContext";
-import { VirtualRow } from "./body/VirtualRow";
-import { CheckboxCell } from "./cells/CheckboxCell";
-import { HeaderCheckbox } from "./header/HeaderCheckbox";
-import { HeaderRow } from "./header/HeaderRow";
-import { HeaderSelectionContext } from "./selection/HeaderSelectionContext";
-import { SELECT_COLUMN_ID } from "./selection/constants";
-import { useCellRangeSelection } from "./selection/useCellRangeSelection";
-import { useRowSelection } from "./selection/useRowSelection";
 import styles from "./DataGrid.module.css";
 
-// Vite substitutes `process.env.NODE_ENV` in client code at build time
-// (matching webpack's convention). Declare the shape locally so the check
-// type-checks without pulling in @types/node.
 declare const process: { readonly env: { readonly NODE_ENV: string } };
 
 // TanStack's ColumnPinningState has optional `left?: string[]` / `right?: string[]`;
@@ -75,7 +72,7 @@ const SELECT_COLUMN: DataGridColumnDef<unknown> = {
   id: SELECT_COLUMN_ID,
   header: () => <HeaderCheckbox />,
   accessor: () => null,
-  cell: CheckboxCell,
+  render: (p) => <CheckboxCell {...p} />,
   width: 44,
   minWidth: 44,
   maxWidth: 44,
@@ -252,8 +249,7 @@ function DataGridInner<TRow>(
         "[DataGrid] The scroll container has unbounded height " +
           "(clientHeight === scrollHeight) while rendering more than 50 rows. " +
           "This usually means an ancestor has `height: auto` or a flex child " +
-          "is missing `min-height: 0`. See plan/09_component_readme.md " +
-          '"Sizing" section for the integration pattern.',
+          "is missing `min-height: 0`.",
       );
     }
   }, [data.length]);
@@ -401,45 +397,7 @@ function DataGridInner<TRow>(
     [rowSel.headerState, rowSel.toggleAll],
   );
 
-  // Sticky scroll shadows. Single scroll listener toggles classes on the
-  // root based on horizontal scroll position. Avoids per-frame React re-renders.
-  const [edgeShadows, setEdgeShadows] = useState({
-    left: false,
-    right: false,
-  });
-  const edgeShadowsRef = useRef(edgeShadows);
-  edgeShadowsRef.current = edgeShadows;
-
-  const recomputeShadows = useCallback(() => {
-    const el = bodyRef.current;
-    if (!el) return;
-    const left = el.scrollLeft > 0;
-    const right = el.scrollLeft < el.scrollWidth - el.clientWidth - 1;
-    const cur = edgeShadowsRef.current;
-    if (cur.left !== left || cur.right !== right) {
-      setEdgeShadows({ left, right });
-    }
-  }, []);
-
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (!el) return;
-    const onScroll = () => recomputeShadows();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    // Initial pass + recompute on resize (e.g. layout settle).
-    recomputeShadows();
-    const ro = new ResizeObserver(() => recomputeShadows());
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      ro.disconnect();
-    };
-  }, [recomputeShadows]);
-
-  // Recompute when totalTableWidth changes (column add/remove/resize).
-  useLayoutEffect(() => {
-    recomputeShadows();
-  }, [totalTableWidth, recomputeShadows]);
+  const virtualSpacerRef = useRef<HTMLDivElement | null>(null);
 
   const headerGroups = table.getHeaderGroups();
   const rowModel = table.getRowModel();
@@ -451,14 +409,7 @@ function DataGridInner<TRow>(
   return (
     <DataGridContext.Provider value={contextValue}>
       <HeaderSelectionContext.Provider value={headerSelectionValue}>
-        <div
-          className={clsx(
-            styles.root,
-            edgeShadows.left && styles.rootShadowLeft,
-            edgeShadows.right && styles.rootShadowRight,
-            className,
-          )}
-        >
+        <div className={clsx(styles.root, className)}>
           {showRefetchBar && <div className={styles.refetchBar} />}
           <div
             ref={bodyRef}
@@ -466,6 +417,11 @@ function DataGridInner<TRow>(
             tabIndex={0}
             onKeyDown={range.onBodyKeyDown}
           >
+            <OverlayColumnShadow
+              visibleLeafColumns={visibleLeafColumns}
+              scrollContainerRef={bodyRef}
+              virtualSpacerRef={virtualSpacerRef}
+            />
             {headerGroups.map((hg) => (
               <HeaderRow
                 key={hg.id}
@@ -475,6 +431,7 @@ function DataGridInner<TRow>(
               />
             ))}
             <div
+              ref={virtualSpacerRef}
               className={styles.virtualSpacer}
               style={{
                 height: data.length === 0 ? "100%" : `${totalSize}px`,
@@ -487,7 +444,7 @@ function DataGridInner<TRow>(
                   const row = rowModel.rows[vr.index];
                   if (!row) return null;
                   return (
-                    <VirtualRow
+                    <BodyRow
                       key={row.id}
                       row={row}
                       top={vr.start}
@@ -498,12 +455,6 @@ function DataGridInner<TRow>(
                     />
                   );
                 })}
-              {showSkeleton && (
-                <SkeletonRows
-                  totalWidth={totalTableWidth}
-                  rowHeight={rowHeight}
-                />
-              )}
               {showEmptyState && (
                 <div className={styles.emptyState}>
                   {emptyState ?? "No results"}
@@ -514,34 +465,6 @@ function DataGridInner<TRow>(
         </div>
       </HeaderSelectionContext.Provider>
     </DataGridContext.Provider>
-  );
-}
-
-function SkeletonRows({
-  totalWidth,
-  rowHeight,
-}: {
-  totalWidth: number;
-  rowHeight: number;
-}) {
-  return (
-    <>
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className={styles.skeletonRow}
-          style={{
-            top: i * rowHeight,
-            height: rowHeight,
-            width: totalWidth,
-            minWidth: totalWidth,
-          }}
-          aria-hidden
-        >
-          <div className={styles.skeletonShimmer} />
-        </div>
-      ))}
-    </>
   );
 }
 

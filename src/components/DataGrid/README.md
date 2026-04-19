@@ -12,25 +12,26 @@ import { DataGrid, TextCell, defaultRangeToTSV } from "@/components/DataGrid";
 import { useDataGrid } from "@/hooks/useDataGrid";
 import { useLocalStorageColumnConfig } from "@/hooks/useLocalStorageColumnConfig";
 import { useQuery } from "@tanstack/react-query";
+
 import type { DataGridColumnDef, DataGridView } from "@/components/DataGrid";
 
 type Row = { id: string; name: string; price: number; createdAt: string };
 
 const columns: DataGridColumnDef<Row>[] = [
-  { id: "id", header: "ID", accessor: (r) => r.id, cell: TextCell },
-  { id: "name", header: "Name", accessor: (r) => r.name, cell: TextCell },
+  { id: "id", header: "ID", accessor: (r) => r.id, render: TextCell },
+  { id: "name", header: "Name", accessor: (r) => r.name, render: TextCell },
   {
     id: "price",
     header: "Price",
     accessor: (r) => r.price,
-    cell: TextCell,
+    render: TextCell,
     align: "right",
   },
   {
     id: "createdAt",
     header: "Created",
     accessor: (r) => r.createdAt,
-    cell: TextCell,
+    render: TextCell,
   },
 ];
 
@@ -84,7 +85,7 @@ function MyPage() {
 }
 ```
 
-Note: cells live **inline on each column** via `column.cell`. There is no `cellRenderers` prop on `<DataGrid />` — import the cell component you want and pass it directly. See the Cell rendering section below.
+Note: cells live **inline on each column** via `column.render`. There is no `cellRenderers` prop on `<DataGrid />` — pass a render function (or import a built-in like `TextCell`) directly. See the Cell rendering section below.
 
 ## Sizing — read this before anything else
 
@@ -238,13 +239,19 @@ Non-negotiable inside the hook. If your page needs different semantics, wrap the
 
 ## Cell rendering
 
-The grid has **no cell type enum** and **no cell registry**. Every column declares its cell component directly on the column def:
+The grid has **no cell type enum** and **no cell registry**. Every column declares its `render` function directly on the column def:
 
 ```ts
-{ id: 'price', header: 'Price', accessor: (r) => r.price, cell: TextCell, align: 'right' }
+{ id: 'price', header: 'Price', accessor: (r) => r.price, render: TextCell, align: 'right' }
 ```
 
-If you omit `cell`, the grid falls back to `TextCell` which renders `String(value ?? '')`. For anything non-string — arrays, objects, dates — that output is intentionally ugly as a signal to write a custom `cell`.
+`render` is `(props: DataGridCellProps<TRow, TValue>) => ReactNode`. If you omit it, the grid falls back to `TextCell` which renders `String(value ?? '')`. For anything non-string — arrays, objects, dates — that output is intentionally ugly as a signal to write a custom `render`.
+
+Because `render` is called as a plain function (not mounted as a component), **React hooks cannot be used inside the lambda itself**. If your cell needs `useContext`, `useState`, etc., define a component and bridge:
+
+```tsx
+render: (p) => <MyRichCell {...p} />;
+```
 
 ### Built-in cells (import and use)
 
@@ -254,20 +261,20 @@ Phase 1 ships:
 import { CheckboxCell, TextCell } from "@/components/DataGrid";
 ```
 
-- `TextCell` — display-only, uses `String(value ?? '')`, respects `align`. Doubles as the implicit fallback when `column.cell` is unset; there is no separate `DefaultCell`.
-- `CheckboxCell` — used by the grid internally for the injected `__select__` row-selection column. You can also use it directly if you build a custom selection model.
+- `TextCell` — display-only, uses `String(value ?? '')`, respects `align`. Doubles as the implicit fallback when `column.render` is unset; there is no separate `DefaultCell`.
+- `CheckboxCell` — used by the grid internally for the injected `__select__` row-selection column. Because it reads context, it's a component — bridge it with `render: (p) => <CheckboxCell {...p} />` if you build a custom selection model.
 
 Richer built-ins (`NumberCell`, `SingleSelectCell`, `MultiSelectCell`, `BooleanCell`, `DateCell`, `DateTimeCell`, etc.) are **deferred future work**. Until they land, write a custom cell inline on the column for anything fancier than plain-text coercion.
 
 ### Custom cells — inline on the column
 
 ```tsx
-const SkuLinkCell: CellRenderer<Product, string> = ({ value, extras }) => (
+const renderSkuLink = ({ value, extras }: DataGridCellProps<Product, string>) => (
   <a onClick={() => (extras.onProductClick as any)?.(value)}>{value}</a>
 )
 
 const columns: DataGridColumnDef<Product>[] = [
-  { id: 'sku.id', header: 'SKU', accessor: (p) => p.skuId, cell: SkuLinkCell, fixedPin: true, pin: 'left' },
+  { id: 'sku.id', header: 'SKU', accessor: (p) => p.skuId, render: renderSkuLink, fixedPin: true, pin: 'left' },
   // ...
 ]
 
@@ -333,9 +340,8 @@ If the click lands inside the current range, the range is preserved and the call
 See `DataGrid.types.ts` for the full contract. Key types:
 
 - `DataGridProps<TRow>` — component controlled props (no `cellRenderers` field)
-- `DataGridColumnDef<TRow, TValue>` — column definition (`id`, `header`, `accessor`, `cell`, `align`, `editable` _(phase 2 — not yet implemented)_, `width`, pinning/visibility flags)
-- `CellRenderer<TRow, TValue>` — `React.ComponentType<DataGridCellProps<TRow, TValue>>`
-- `DataGridCellProps<TRow, TValue>` — everything a cell receives: display props + edit props _(phase 2 — not yet implemented)_ + selection props + `extras`
+- `DataGridColumnDef<TRow, TValue>` — column definition (`id`, `header`, `accessor`, `render`, `align`, `editable` _(phase 2 — not yet implemented)_, `width`, pinning/visibility flags)
+- `DataGridCellProps<TRow, TValue>` — everything a cell receives: display props + edit props _(phase 2 — not yet implemented)_ + selection props + `extras`. `render` is a `(props) => ReactNode` function — see "Cell rendering" for the hooks escape hatch.
 - `DataGridView<TFilters>` — view state object: `{ pageIndex, pageSize, sorting, filters }`
 - `ColumnConfigState` — column visibility/order/sizing/pinning bundle
 - `CellRangeSelection` — `{ anchor, focus }` with `{ rowIndex, columnId }` endpoints
@@ -379,7 +385,7 @@ A: Gotcha 7. Some ancestor has `transform`, which breaks sticky. Remove it or mo
 A: Expected — `ResizeObserver` is firing many times during the animation. Usually fine. If bad, animate `max-height` not measured height.
 
 **Q: How do I add a custom cell renderer for one specific column?**
-A: Set `cell: MyCustomCell` directly on that column's `DataGridColumnDef`. There is no registry — the component reference lives inline on the column.
+A: Set `render: myRenderFn` directly on that column's `DataGridColumnDef`. There is no registry — the render function lives inline on the column. Need hooks? Define a component and bridge: `render: (p) => <MyCustomCell {...p} />`.
 
 **Q: My column shows `[object Object]` in every cell.**
 A: Your `accessor` returns an object. Either change the accessor to return a primitive (`(row) => row.nested.value`) or pass a custom `cell` that knows how to render the object shape. The default cell is intentionally dumb about objects.
