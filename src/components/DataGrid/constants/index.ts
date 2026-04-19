@@ -5,4 +5,4 @@ export const SELECT_COLUMN_ID = "__select__";
 
 export const DEFAULT_ROW_HEIGHT = 40;
 export const DEFAULT_HEADER_HEIGHT = 40;
-export const DEFAULT_OVERSCAN = 25;
+export const DEFAULT_OVERSCAN = 15;

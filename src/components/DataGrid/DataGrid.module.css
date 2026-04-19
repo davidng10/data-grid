@@ -316,7 +316,7 @@
   top: 0;
   width: 12px;
   pointer-events: none;
-  transition: opacity 120ms ease;
+  transition: opacity 100ms ease;
 }
 
 .bodyShadowLeft {

@@ -88,6 +88,7 @@ function DataGridInner<TRow>(
     onRangeCopy,
   } = props;
 
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const virtualSpacerRef = useRef<HTMLDivElement | null>(null);
 
   const { columns: tanstackColumns, columnPinning: effectiveColumnPinning } =
@@ -131,6 +132,13 @@ function DataGridInner<TRow>(
     pageCount,
   });
 
+  const rowVirtualizer = useVirtualizer({
+    count: data.length,
+    getScrollElement: () => bodyRef.current,
+    estimateSize: () => rowHeight,
+    overscan,
+  });
+
   const visibleLeafColumns = table.getVisibleLeafColumns();
 
   const totalTableWidth = useMemo(
@@ -154,14 +162,6 @@ function DataGridInner<TRow>(
       .map((id) => byId.get(id))
       .filter((c): c is DataGridColumnDef<TRow> => c !== undefined);
   }, [visualColumnIds, dgColumns]);
-
-  const bodyRef = useRef<HTMLDivElement | null>(null);
-  const rowVirtualizer = useVirtualizer({
-    count: data.length,
-    getScrollElement: () => bodyRef.current,
-    estimateSize: () => rowHeight,
-    overscan,
-  });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
@@ -320,7 +320,6 @@ function DataGridInner<TRow>(
   const headerGroups = table.getHeaderGroups();
   const rowModel = table.getRowModel();
 
-  const showSkeleton = isLoading && data.length === 0;
   const showEmptyState = !isLoading && data.length === 0;
 
   // Dev-mode unbounded-height warning. Vite substitutes process.env.NODE_ENV
@@ -372,7 +371,12 @@ function DataGridInner<TRow>(
                   minWidth: `${totalTableWidth}px`,
                 }}
               >
-                {!showSkeleton &&
+                {showEmptyState && (
+                  <div className={styles.emptyState}>
+                    {emptyState ?? "No results"}
+                  </div>
+                )}
+                {!showEmptyState &&
                   virtualRows.map((vr) => {
                     const row = rowModel.rows[vr.index];
                     if (!row) return null;
@@ -388,11 +392,6 @@ function DataGridInner<TRow>(
                       />
                     );
                   })}
-                {showEmptyState && (
-                  <div className={styles.emptyState}>
-                    {emptyState ?? "No results"}
-                  </div>
-                )}
               </div>
             </div>
           </div>
