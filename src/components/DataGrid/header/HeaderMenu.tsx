@@ -1,14 +1,12 @@
-import { memo, useRef, useState, type MouseEvent } from "react";
+import { memo, useRef, useState } from "react";
+
 import type { Header, Table } from "@tanstack/react-table";
-import type {
-  ColumnPinningState,
-  DataGridColumnDef,
-} from "../DataGrid.types";
-import { useDataGridContext } from "../internal/DataGridContext";
-import {
-  DropdownMenu,
-  type DropdownMenuItem,
-} from "../internal/DropdownMenu";
+import type { MouseEvent } from "react";
+import type { ColumnPinningState, DataGridColumnDef } from "../DataGrid.types";
+import type { DropdownMenuItem } from "../DropdownMenu";
+
+import { DropdownMenu } from "../DropdownMenu";
+import { useDataGridContext } from "../useDataGridContext";
 import styles from "../DataGrid.module.css";
 
 type HeaderMenuProps<TRow> = {
@@ -120,7 +118,8 @@ function HeaderMenuRender<TRow>({ header }: HeaderMenuProps<TRow>) {
   const column = header.column;
   const dg = getDgColumn(table, column.id);
   const pin = column.getIsPinned();
-  const zone: Zone = pin === "left" ? "left" : pin === "right" ? "right" : "middle";
+  const zone: Zone =
+    pin === "left" ? "left" : pin === "right" ? "right" : "middle";
   const { prev, next } = computeZoneNeighbors(table, column.id, zone);
   const prevDg = prev ? getDgColumn(table, prev) : undefined;
   const nextDg = next ? getDgColumn(table, next) : undefined;
@@ -128,17 +127,22 @@ function HeaderMenuRender<TRow>({ header }: HeaderMenuProps<TRow>) {
   const items: DropdownMenuItem[] = [];
 
   if (featureFlags.pinning) {
-    const fixedPinReason = dg?.fixedPin ? "Pin is fixed on this column" : undefined;
+    const fixedPinReason = dg?.fixedPin
+      ? "Pin is fixed on this column"
+      : undefined;
     items.push({
       label: "Pin left",
       disabled: !!dg?.fixedPin || pin === "left",
-      disabledReason: fixedPinReason ?? (pin === "left" ? "Already pinned left" : undefined),
+      disabledReason:
+        fixedPinReason ?? (pin === "left" ? "Already pinned left" : undefined),
       onClick: () => column.pin("left"),
     });
     items.push({
       label: "Pin right",
       disabled: !!dg?.fixedPin || pin === "right",
-      disabledReason: fixedPinReason ?? (pin === "right" ? "Already pinned right" : undefined),
+      disabledReason:
+        fixedPinReason ??
+        (pin === "right" ? "Already pinned right" : undefined),
       onClick: () => column.pin("right"),
     });
     items.push({
@@ -155,10 +159,7 @@ function HeaderMenuRender<TRow>({ header }: HeaderMenuProps<TRow>) {
       : undefined;
     items.push({
       label: "Move left",
-      disabled:
-        !!dg?.fixedPosition ||
-        !prev ||
-        !!prevDg?.fixedPosition,
+      disabled: !!dg?.fixedPosition || !prev || !!prevDg?.fixedPosition,
       disabledReason:
         selfFixedReason ??
         (!prev
@@ -170,10 +171,7 @@ function HeaderMenuRender<TRow>({ header }: HeaderMenuProps<TRow>) {
     });
     items.push({
       label: "Move right",
-      disabled:
-        !!dg?.fixedPosition ||
-        !next ||
-        !!nextDg?.fixedPosition,
+      disabled: !!dg?.fixedPosition || !next || !!nextDg?.fixedPosition,
       disabledReason:
         selfFixedReason ??
         (!next

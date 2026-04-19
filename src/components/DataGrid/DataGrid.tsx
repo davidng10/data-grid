@@ -7,35 +7,32 @@ import {
   useMemo,
   useRef,
   useState,
-  type ForwardedRef,
-  type ReactElement,
 } from "react";
-import {
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-  type OnChangeFn,
-} from "@tanstack/react-table";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
+
+import type { ColumnDef, OnChangeFn } from "@tanstack/react-table";
+import type { ForwardedRef, ReactElement } from "react";
 import type {
   DataGridColumnDef,
   DataGridHandle,
   DataGridProps,
 } from "./DataGrid.types";
-import {
-  DataGridContextProvider,
-  type DataGridContextValue,
-  type DataGridFeatureFlags,
-} from "./internal/DataGridContext";
-import { HeaderSelectionContextProvider } from "./internal/HeaderSelectionContext";
-import { HeaderRow } from "./header/HeaderRow";
-import { HeaderCheckbox } from "./header/HeaderCheckbox";
+import type {
+  DataGridContextValue,
+  DataGridFeatureFlags,
+} from "./DataGridContext";
+
+import { DataGridContext } from "./DataGridContext";
 import { VirtualRow } from "./body/VirtualRow";
 import { CheckboxCell } from "./cells/CheckboxCell";
+import { HeaderCheckbox } from "./header/HeaderCheckbox";
+import { HeaderRow } from "./header/HeaderRow";
+import { HeaderSelectionContext } from "./selection/HeaderSelectionContext";
+import { SELECT_COLUMN_ID } from "./selection/constants";
 import { useCellRangeSelection } from "./selection/useCellRangeSelection";
 import { useRowSelection } from "./selection/useRowSelection";
-import { SELECT_COLUMN_ID } from "./selection/constants";
 import styles from "./DataGrid.module.css";
 
 // Vite substitutes `process.env.NODE_ENV` in client code at build time
@@ -57,9 +54,7 @@ function toTanStackColumns<TRow>(
     return {
       id: col.id,
       header:
-        typeof headerDef === "string"
-          ? headerDef
-          : (ctx) => headerDef(ctx),
+        typeof headerDef === "string" ? headerDef : (ctx) => headerDef(ctx),
       accessorFn: (row: TRow) => col.accessor(row),
       size: col.width ?? 160,
       minSize: col.minWidth ?? 60,
@@ -140,10 +135,7 @@ function DataGridInner<TRow>(
   // changes whenever `dgColumns` does, so memo deps stay honest.
   const augmentedDgColumns = useMemo<DataGridColumnDef<TRow>[]>(() => {
     if (!allowRowSelection) return dgColumns;
-    return [
-      SELECT_COLUMN as unknown as DataGridColumnDef<TRow>,
-      ...dgColumns,
-    ];
+    return [SELECT_COLUMN as unknown as DataGridColumnDef<TRow>, ...dgColumns];
   }, [allowRowSelection, dgColumns]);
 
   const tanstackColumns = useMemo(
@@ -161,7 +153,8 @@ function DataGridInner<TRow>(
   // didn't pre-seed `columnPinning.left`. We splice rather than override so
   // user-provided pin order is preserved.
   const effectiveColumnPinning = useMemo<TSTColumnPinning | undefined>(() => {
-    if (!allowRowSelection) return columnPinning as TSTColumnPinning | undefined;
+    if (!allowRowSelection)
+      return columnPinning as TSTColumnPinning | undefined;
     const left = columnPinning?.left ?? [];
     const right = columnPinning?.right ?? [];
     if (left.includes(SELECT_COLUMN_ID)) {
@@ -293,9 +286,12 @@ function DataGridInner<TRow>(
   // into this. (Filter changes also bump pageIndex via useDataGrid, so we
   // catch them transitively.)
   const pageIdentity = useMemo(
-    () => `${pagination?.pageIndex ?? 0}:${pagination?.pageSize ?? 0}:${
-      sorting ? sorting.map((s) => `${s.id}-${s.desc ? "d" : "a"}`).join(",") : ""
-    }`,
+    () =>
+      `${pagination?.pageIndex ?? 0}:${pagination?.pageSize ?? 0}:${
+        sorting
+          ? sorting.map((s) => `${s.id}-${s.desc ? "d" : "a"}`).join(",")
+          : ""
+      }`,
     [pagination?.pageIndex, pagination?.pageSize, sorting],
   );
 
@@ -407,7 +403,10 @@ function DataGridInner<TRow>(
 
   // Sticky scroll shadows. Single scroll listener toggles classes on the
   // root based on horizontal scroll position. Avoids per-frame React re-renders.
-  const [edgeShadows, setEdgeShadows] = useState({ left: false, right: false });
+  const [edgeShadows, setEdgeShadows] = useState({
+    left: false,
+    right: false,
+  });
   const edgeShadowsRef = useRef(edgeShadows);
   edgeShadowsRef.current = edgeShadows;
 
@@ -450,8 +449,8 @@ function DataGridInner<TRow>(
   const showRefetchBar = isLoading && data.length > 0;
 
   return (
-    <DataGridContextProvider value={contextValue}>
-      <HeaderSelectionContextProvider value={headerSelectionValue}>
+    <DataGridContext.Provider value={contextValue}>
+      <HeaderSelectionContext.Provider value={headerSelectionValue}>
         <div
           className={clsx(
             styles.root,
@@ -478,8 +477,7 @@ function DataGridInner<TRow>(
             <div
               className={styles.virtualSpacer}
               style={{
-                height:
-                  data.length === 0 ? "100%" : `${totalSize}px`,
+                height: data.length === 0 ? "100%" : `${totalSize}px`,
                 width: `${totalTableWidth}px`,
                 minWidth: `${totalTableWidth}px`,
               }}
@@ -514,8 +512,8 @@ function DataGridInner<TRow>(
             </div>
           </div>
         </div>
-      </HeaderSelectionContextProvider>
-    </DataGridContextProvider>
+      </HeaderSelectionContext.Provider>
+    </DataGridContext.Provider>
   );
 }
 

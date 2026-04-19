@@ -1,8 +1,10 @@
 import type { Row } from "@tanstack/react-table";
-import { BodyCell } from "./BodyCell";
-import type { CellRangeSelection } from "../DataGrid.types";
+
 import { SELECT_COLUMN_ID } from "../selection/constants";
 import { isCellInRange } from "../selection/useCellRangeSelection";
+import { BodyCell } from "./BodyCell";
+import type { CellRangeSelection } from "../DataGrid.types";
+
 import styles from "../DataGrid.module.css";
 
 type VirtualRowProps<TRow> = {
@@ -42,7 +44,12 @@ export function VirtualRow<TRow>({
         // clicking a checkbox doesn't start a drag / clear the current range.
         const wireRangeHandlers = !isSelectColumn;
         const inRange = wireRangeHandlers
-          ? isCellInRange(row.index, columnId, cellRangeSelection, visualColumnIds)
+          ? isCellInRange(
+              row.index,
+              columnId,
+              cellRangeSelection,
+              visualColumnIds,
+            )
           : false;
         const isRangeAnchor =
           wireRangeHandlers &&

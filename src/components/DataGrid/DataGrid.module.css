@@ -11,14 +11,11 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
   box-sizing: border-box;
   border: 1px solid var(--dg-border);
   background: var(--dg-row-bg);
   color: var(--dg-text);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 13px;
-  line-height: 1.4;
 }
 
 .scrollContainer {
@@ -214,7 +211,9 @@
   border-radius: 3px;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 80ms ease, background-color 80ms ease;
+  transition:
+    opacity 80ms ease,
+    background-color 80ms ease;
 }
 
 .headerCell:hover .headerMenuButton,
@@ -293,8 +292,12 @@
 /* ----- Refetch bar ----- */
 
 @keyframes dgRefetchBar {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .refetchBar {
@@ -319,8 +322,12 @@
 /* ----- Loading skeleton ----- */
 
 @keyframes dgSkeletonShimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .skeletonRow {
@@ -371,13 +378,13 @@
 
 .rootShadowLeft .headerCellPinnedLeft,
 .rootShadowLeft .bodyCellPinnedLeft {
-  box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.18);
+  box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.10);
   clip-path: inset(0 -8px 0 0);
 }
 
 .rootShadowRight .headerCellPinnedRight,
 .rootShadowRight .bodyCellPinnedRight {
-  box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.18);
+  box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.10);
   clip-path: inset(0 0 0 -8px);
 }
 

@@ -1,5 +1,8 @@
-import { useEffect, useRef, type MouseEvent } from "react";
-import { useHeaderSelectionContext } from "../internal/HeaderSelectionContext";
+import { useEffect, useRef } from "react";
+import type { MouseEvent } from "react";
+
+import { useHeaderSelectionContext } from "../selection/useHeaderSelectionContext";
+
 import styles from "../DataGrid.module.css";
 
 // Header checkbox for the injected __select__ column. Tri-state — the

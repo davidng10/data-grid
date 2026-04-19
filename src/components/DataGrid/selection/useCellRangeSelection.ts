@@ -5,10 +5,13 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
-  type RefObject,
 } from "react";
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  RefObject,
+} from "react";
+
 import type {
   CellRange,
   CellRangeSelection,
@@ -161,9 +164,11 @@ export function useCellRangeSelection<TRow>(
         let dx = 0;
         let dy = 0;
         if (cursor.y < rect.top + AUTO_SCROLL_GUTTER) dy = -AUTO_SCROLL_SPEED;
-        else if (cursor.y > rect.bottom - AUTO_SCROLL_GUTTER) dy = AUTO_SCROLL_SPEED;
+        else if (cursor.y > rect.bottom - AUTO_SCROLL_GUTTER)
+          dy = AUTO_SCROLL_SPEED;
         if (cursor.x < rect.left + AUTO_SCROLL_GUTTER) dx = -AUTO_SCROLL_SPEED;
-        else if (cursor.x > rect.right - AUTO_SCROLL_GUTTER) dx = AUTO_SCROLL_SPEED;
+        else if (cursor.x > rect.right - AUTO_SCROLL_GUTTER)
+          dx = AUTO_SCROLL_SPEED;
         if (dx !== 0 || dy !== 0) {
           el.scrollLeft += dx;
           el.scrollTop += dy;
@@ -252,7 +257,10 @@ export function useCellRangeSelection<TRow>(
       if (!isDraggingRef.current) return;
       const current = rangeRef.current;
       if (!current) return;
-      const next = { anchor: current.anchor, focus: { rowIndex, columnId } };
+      const next = {
+        anchor: current.anchor,
+        focus: { rowIndex, columnId },
+      };
       if (
         endpointsEqual(current.focus, next.focus) &&
         endpointsEqual(current.anchor, next.anchor)
@@ -306,7 +314,10 @@ export function useCellRangeSelection<TRow>(
         if (ids.length === 0 || rc === 0) return;
         e.preventDefault();
         const anchor = { rowIndex: 0, columnId: ids[0] };
-        const focus = { rowIndex: rc - 1, columnId: ids[ids.length - 1] };
+        const focus = {
+          rowIndex: rc - 1,
+          columnId: ids[ids.length - 1],
+        };
         setRange({ anchor, focus });
         setFocusedCell(focus);
         return;

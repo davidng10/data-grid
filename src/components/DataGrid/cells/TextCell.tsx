@@ -1,16 +1,14 @@
 import { memo } from "react";
+
 import type { CellRenderer, DataGridCellProps } from "../DataGrid.types";
+
 import styles from "../DataGrid.module.css";
 
 function TextCellRender(props: DataGridCellProps<unknown, unknown>) {
   const { value, align } = props;
   const text = value == null ? "" : String(value);
   return (
-    <span
-      className={styles.textCell}
-      title={text}
-      style={{ textAlign: align }}
-    >
+    <span className={styles.textCell} title={text} style={{ textAlign: align }}>
       {text}
     </span>
   );

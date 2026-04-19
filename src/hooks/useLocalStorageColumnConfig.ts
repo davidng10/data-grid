@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import type {
   ColumnConfigState,
   ColumnPinningState,
@@ -37,7 +38,8 @@ type ResolvedOptions = {
 function resolveOptions(
   options: UseLocalStorageColumnConfigOptions | undefined,
 ): ResolvedOptions {
-  const warnFn = options?.onWarn ?? ((message: string) => console.warn(message));
+  const warnFn =
+    options?.onWarn ?? ((message: string) => console.warn(message));
   return {
     maxVisibleColumns: options?.maxVisibleColumns ?? DEFAULT_MAX_VISIBLE,
     fixedVisibleColumnIds: options?.fixedVisibleColumnIds ?? [],
@@ -148,10 +150,7 @@ function applyVisibilityCaps(
   return out;
 }
 
-function validate(
-  raw: unknown,
-  opts: ResolvedOptions,
-): ColumnConfigState {
+function validate(raw: unknown, opts: ResolvedOptions): ColumnConfigState {
   if (!raw || typeof raw !== "object") return EMPTY_STATE;
   const r = raw as Partial<ColumnConfigState>;
   if (r.schemaVersion !== SCHEMA_VERSION) return EMPTY_STATE;
@@ -180,10 +179,7 @@ function validate(
   };
 }
 
-function readInitial(
-  key: string,
-  opts: ResolvedOptions,
-): ColumnConfigState {
+function readInitial(key: string, opts: ResolvedOptions): ColumnConfigState {
   if (typeof window === "undefined") return EMPTY_STATE;
   try {
     const raw = window.localStorage.getItem(key);

@@ -1,17 +1,20 @@
 import { useMemo, useRef, useState } from "react";
 import { Button, Checkbox, Modal, Tooltip, message } from "antd";
-import { useDataGrid } from "../../hooks/useDataGrid";
-import { useLocalStorageColumnConfig } from "../../hooks/useLocalStorageColumnConfig";
+
 import {
   DataGrid,
   TextCell,
   defaultRangeToTSV,
-  type CellRange,
-  type CellRenderer,
-  type DataGridColumnDef,
-  type DataGridHandle,
-  type DataGridView,
-  type SortingState,
+} from "../../components/DataGrid";
+import { useDataGrid } from "../../components/DataGrid/useDataGrid";
+import { useLocalStorageColumnConfig } from "../../hooks/useLocalStorageColumnConfig";
+import type {
+  CellRange,
+  CellRenderer,
+  DataGridColumnDef,
+  DataGridHandle,
+  DataGridView,
+  SortingState,
 } from "../../components/DataGrid";
 
 type Row = {
@@ -292,8 +295,7 @@ export const PlaygroundPage = () => {
   // would render their own (Copy, Bulk edit, Export, …). The grid itself
   // never renders a menu.
   const onRangeContextMenu = (e: globalThis.MouseEvent, range: CellRange) => {
-    const rows =
-      Math.abs(range.focus.rowIndex - range.anchor.rowIndex) + 1;
+    const rows = Math.abs(range.focus.rowIndex - range.anchor.rowIndex) + 1;
     e.preventDefault();
     message.info(
       `Range context menu: ${rows} row(s), anchor ${range.anchor.columnId} → focus ${range.focus.columnId}`,
@@ -305,7 +307,10 @@ export const PlaygroundPage = () => {
   // playground demo can confirm what was copied without leaving the tab.
   const onRangeCopy = (
     range: CellRange,
-    ctx: { getCellValue: (r: number, c: string) => unknown; columns: DataGridColumnDef<Row>[] },
+    ctx: {
+      getCellValue: (r: number, c: string) => unknown;
+      columns: DataGridColumnDef<Row>[];
+    },
   ) => {
     const tsv = defaultRangeToTSV(range, ctx.getCellValue, ctx.columns);
     console.log("[playground] onRangeCopy →", { range, tsv });
@@ -338,9 +343,9 @@ export const PlaygroundPage = () => {
         </h1>
         <p style={{ color: "#666", margin: "4px 0 12px" }}>
           Row + range selection, copy via <code>defaultRangeToTSV</code>,
-          right-click context-menu hook, sticky scroll shadows, loading /
-          empty / refetch states. Drag a range; Ctrl/Cmd+C; arrow keys after
-          clicking a cell.
+          right-click context-menu hook, sticky scroll shadows, loading / empty
+          / refetch states. Drag a range; Ctrl/Cmd+C; arrow keys after clicking
+          a cell.
         </p>
 
         <div

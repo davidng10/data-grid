@@ -1,4 +1,5 @@
-import { createContext, useContext, type MouseEvent } from "react";
+import { createContext } from "react";
+import type { MouseEvent } from "react";
 
 export type DataGridFeatureFlags = {
   sorting: boolean;
@@ -43,16 +44,4 @@ export type DataGridContextValue = {
   toggleRow: ToggleRowFn;
 };
 
-const DataGridContext = createContext<DataGridContextValue | null>(null);
-
-export const DataGridContextProvider = DataGridContext.Provider;
-
-export function useDataGridContext(): DataGridContextValue {
-  const ctx = useContext(DataGridContext);
-  if (ctx === null) {
-    throw new Error(
-      "useDataGridContext must be used inside a <DataGrid /> subtree.",
-    );
-  }
-  return ctx;
-}
+export const DataGridContext = createContext<DataGridContextValue | null>(null);

@@ -1,12 +1,10 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import styles from "../DataGrid.module.css";
+import { createPortal } from "react-dom";
+
+import type { RefObject } from "react";
+
+import styles from "./DataGrid.module.css";
 
 export type DropdownMenuItem = {
   label: string;
@@ -29,9 +27,10 @@ export function DropdownMenu({
   items,
 }: DropdownMenuProps) {
   const menuRef = useRef<HTMLUListElement>(null);
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(
-    null,
-  );
+  const [position, setPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [focused, setFocused] = useState(0);
 
   useEffect(() => {

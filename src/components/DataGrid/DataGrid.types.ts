@@ -1,9 +1,9 @@
-import type { ComponentType, ReactNode } from "react";
 import type {
-  HeaderContext as TSTHeaderContext,
   OnChangeFn,
+  HeaderContext as TSTHeaderContext,
   SortingState as TSTSortingState,
 } from "@tanstack/react-table";
+import type { ComponentType, ReactNode } from "react";
 
 export type SortingState = TSTSortingState;
 

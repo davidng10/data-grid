@@ -1,6 +1,7 @@
-import type { MouseEvent, TouchEvent } from "react";
-import type { Header } from "@tanstack/react-table";
 import clsx from "clsx";
+import type { Header } from "@tanstack/react-table";
+import type { MouseEvent, TouchEvent } from "react";
+
 import styles from "../DataGrid.module.css";
 
 type ResizeHandleProps<TRow> = {
@@ -25,7 +26,10 @@ export function ResizeHandle<TRow>({ header }: ResizeHandleProps<TRow>) {
 
   return (
     <div
-      className={clsx(styles.resizeHandle, isResizing && styles.resizeHandleActive)}
+      className={clsx(
+        styles.resizeHandle,
+        isResizing && styles.resizeHandleActive,
+      )}
       role="separator"
       aria-orientation="vertical"
       onMouseDown={onMouseDown}

@@ -1,14 +1,17 @@
-import { memo, type CSSProperties, type MouseEvent } from "react";
-import type { Cell } from "@tanstack/react-table";
+import { memo } from "react";
 import clsx from "clsx";
+import type { Cell } from "@tanstack/react-table";
+import type { CSSProperties, MouseEvent } from "react";
+
+import { TextCell } from "../cells/TextCell";
+import { useDataGridContext } from "../useDataGridContext";
 import type {
   Align,
   CellRenderer,
   DataGridCellProps,
   DataGridColumnDef,
 } from "../DataGrid.types";
-import { TextCell } from "../cells/TextCell";
-import { useDataGridContext } from "../internal/DataGridContext";
+
 import styles from "../DataGrid.module.css";
 
 type BodyCellProps<TRow> = {

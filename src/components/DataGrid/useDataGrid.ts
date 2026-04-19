@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import type { OnChangeFn } from "@tanstack/react-table";
+
 import type {
   ActiveEditorState,
   CellRangeSelection,
@@ -9,7 +10,7 @@ import type {
   DataGridView,
   PaginationState,
   SortingState,
-} from "../components/DataGrid/DataGrid.types";
+} from "./DataGrid.types";
 
 type Updater<T> = T | ((old: T) => T);
 
@@ -176,12 +177,10 @@ export function useDataGrid<TRow, TFilters>(
       setCellRangeSelection((prev) => resolveUpdater(updater, prev));
     }, []);
 
-  const onActiveEditorChangeForGrid: OnChangeFn<ActiveEditorState> = useCallback(
-    (updater) => {
+  const onActiveEditorChangeForGrid: OnChangeFn<ActiveEditorState> =
+    useCallback((updater) => {
       setActiveEditor((prev) => resolveUpdater(updater, prev));
-    },
-    [],
-  );
+    }, []);
 
   const onColumnVisibilityChangeForGrid: OnChangeFn<Record<string, boolean>> =
     useCallback(
