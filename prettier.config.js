@@ -1,0 +1,21 @@
+export default {
+  printWidth: 80,
+  tabWidth: 2,
+  trailingComma: "all",
+  singleQuote: false,
+  semi: true,
+  importOrder: [
+    "^react$",
+    "<BUILTIN_MODULES>",
+    "<THIRD_PARTY_MODULES>",
+    "",
+    "<TYPES>",
+    "<TYPES>^[./]",
+    "",
+    "^(?!.*[.]css$)[./].*$",
+    ".css$",
+  ],
+  importOrderCaseSensitive: true,
+  importOrderParserPlugins: ["typescript", "jsx", "decorators-legacy"],
+  plugins: ["@ianvs/prettier-plugin-sort-imports"],
+};
