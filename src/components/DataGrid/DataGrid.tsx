@@ -10,14 +10,6 @@ import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 
-import type { ForwardedRef, ReactElement } from "react";
-import type {
-  DataGridActionsValue,
-  DataGridConfigValue,
-  DataGridFeatureFlags,
-} from "./hooks/useDataGridContext";
-import type { DataGridColumnDef, DataGridHandle, DataGridProps } from "./types";
-
 import { BodyRow } from "./components/body/BodyRow";
 import { OverlayColumnShadow } from "./components/body/OverlapColumnShadow";
 import { HeaderRow } from "./components/header/HeaderRow";
@@ -25,7 +17,6 @@ import {
   DEFAULT_HEADER_HEIGHT,
   DEFAULT_OVERSCAN,
   DEFAULT_ROW_HEIGHT,
-  EMPTY_EXTRAS,
   SELECT_COLUMN_ID,
 } from "./constants";
 import { useCellRangeSelection } from "./hooks/useCellRangeSelection";
@@ -37,6 +28,15 @@ import {
 import { HeaderSelectionContext } from "./hooks/useHeaderSelectionContext";
 import { useRowSelection } from "./hooks/useRowSelection";
 import { shouldClearRangeForVisibilityChange } from "./utils/rangeVisibility";
+
+import type { ForwardedRef, ReactElement } from "react";
+import type {
+  DataGridActionsValue,
+  DataGridConfigValue,
+  DataGridFeatureFlags,
+} from "./hooks/useDataGridContext";
+import type { DataGridColumnDef, DataGridHandle, DataGridProps } from "./types";
+
 import styles from "./DataGrid.module.css";
 
 declare const process: { readonly env: { readonly NODE_ENV: string } };
@@ -82,14 +82,12 @@ function DataGridInner<TRow>(
     rowHeight = DEFAULT_ROW_HEIGHT,
     headerHeight = DEFAULT_HEADER_HEIGHT,
     overscan = DEFAULT_OVERSCAN,
-    cellExtras,
     emptyState,
     className,
     onRangeContextMenu,
     onRangeCopy,
   } = props;
 
-  const resolvedExtras = cellExtras ?? EMPTY_EXTRAS;
   const virtualSpacerRef = useRef<HTMLDivElement | null>(null);
 
   const { columns: tanstackColumns, columnPinning: effectiveColumnPinning } =
@@ -306,10 +304,9 @@ function DataGridInner<TRow>(
 
   const configValue = useMemo<DataGridConfigValue>(
     () => ({
-      cellExtras: resolvedExtras,
       featureFlags,
     }),
-    [resolvedExtras, featureFlags],
+    [featureFlags],
   );
 
   const headerSelectionValue = useMemo(

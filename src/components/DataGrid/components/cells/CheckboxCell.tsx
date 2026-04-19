@@ -1,9 +1,10 @@
 import { memo } from "react";
 
+import { useDataGridActions } from "../../hooks/useDataGridContext";
+
 import type { MouseEvent } from "react";
 import type { DataGridCellProps } from "../../types";
 
-import { useDataGridActions } from "../../hooks/useDataGridContext";
 import styles from "../../DataGrid.module.css";
 
 function CheckboxCellRender<TRow>(props: DataGridCellProps<TRow, unknown>) {

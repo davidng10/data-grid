@@ -1,6 +1,9 @@
 import { memo } from "react";
 import clsx from "clsx";
 
+import { useDataGridActions } from "../../hooks/useDataGridContext";
+import { TextCell } from "../cells/TextCell";
+
 import type { Cell } from "@tanstack/react-table";
 import type { CSSProperties, MouseEvent } from "react";
 import type {
@@ -9,11 +12,6 @@ import type {
   DataGridColumnDef,
 } from "../../types";
 
-import {
-  useDataGridActions,
-  useDataGridConfig,
-} from "../../hooks/useDataGridContext";
-import { TextCell } from "../cells/TextCell";
 import styles from "../../DataGrid.module.css";
 
 type BodyCellProps<TRow> = {
@@ -49,7 +47,6 @@ function BodyCellRender<TRow>({
   isSelected,
   wireRangeHandlers,
 }: BodyCellProps<TRow>) {
-  const { cellExtras } = useDataGridConfig();
   const { cellMouseHandlers } = useDataGridActions();
 
   const meta = cell.column.columnDef.meta as
@@ -84,7 +81,6 @@ function BodyCellRender<TRow>({
     isRangeAnchor,
     isRangeFocus,
     isSelected,
-    extras: cellExtras,
   };
 
   const onMouseDown = wireRangeHandlers

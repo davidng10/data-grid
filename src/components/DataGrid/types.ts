@@ -99,7 +99,6 @@ export type DataGridCellProps<TRow, TValue = unknown> = {
   isRangeAnchor: boolean;
   isRangeFocus: boolean;
   isSelected: boolean;
-  extras: Record<string, unknown>;
 
   commitEdit: () => void;
   cancelEdit: () => void;
@@ -158,8 +157,6 @@ export type DataGridProps<TRow> = {
   rowHeight?: number;
   headerHeight?: number;
   overscan?: number;
-
-  cellExtras?: Record<string, unknown>;
 
   // Right-click on a cell. The grid marks/preserves the range and fires this
   // event with the native MouseEvent — consumer renders their own menu.

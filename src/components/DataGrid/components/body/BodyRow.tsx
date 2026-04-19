@@ -1,9 +1,10 @@
-import type { Row } from "@tanstack/react-table";
-import type { CellRangeSelection } from "../../types";
-
 import { SELECT_COLUMN_ID } from "../../constants";
 import { isCellInRange } from "../../utils/rangeSelection";
 import { BodyCell } from "./BodyCell";
+
+import type { Row } from "@tanstack/react-table";
+import type { CellRangeSelection } from "../../types";
+
 import styles from "../../DataGrid.module.css";
 
 type BodyRowProps<TRow> = {

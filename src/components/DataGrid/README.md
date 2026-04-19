@@ -213,16 +213,16 @@ Persists column visibility/order/sizing/pinning to localStorage under a key you 
 
 Set directly on `<DataGrid />`. Off by default — opt in to the features your page uses:
 
-| Flag                    | Default   | When true                                                                                                    |
-| ----------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
-| `allowSorting`          | false     | Header clicks sort.                                                                                          |
-| `allowPinning`          | false     | Pin/unpin available in header menu. Column-def `fixedPin` is always honored regardless of this flag.         |
-| `allowReorder`          | false     | Drag + "move" in header menu.                                                                                |
-| `allowResize`           | **true**  | Resize handles on column borders.                                                                            |
-| `allowColumnVisibility` | false     | "Hide" offered in header menu.                                                                               |
-| `allowRowSelection`     | false     | Pinned-left checkbox column injected.                                                                        |
-| `allowRangeSelection`   | false     | Mouse drag starts a rectangular range.                                                                       |
-| `allowInlineEdit`       | false     | Cells can enter edit mode. _(Phase 2 — not yet implemented; flipping the flag does nothing today.)_          |
+| Flag                    | Default  | When true                                                                                            |
+| ----------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `allowSorting`          | false    | Header clicks sort.                                                                                  |
+| `allowPinning`          | false    | Pin/unpin available in header menu. Column-def `fixedPin` is always honored regardless of this flag. |
+| `allowReorder`          | false    | Drag + "move" in header menu.                                                                        |
+| `allowResize`           | **true** | Resize handles on column borders.                                                                    |
+| `allowColumnVisibility` | false    | "Hide" offered in header menu.                                                                       |
+| `allowRowSelection`     | false    | Pinned-left checkbox column injected.                                                                |
+| `allowRangeSelection`   | false    | Mouse drag starts a rectangular range.                                                               |
+| `allowInlineEdit`       | false    | Cells can enter edit mode. _(Phase 2 — not yet implemented; flipping the flag does nothing today.)_  |
 
 ## Transition rules (live in `useDataGrid`)
 

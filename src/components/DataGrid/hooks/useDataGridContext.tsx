@@ -39,11 +39,9 @@ export type ToggleRowFn = (
 ) => void;
 
 // Config context: values that change rarely (feature flags) or opaquely
-// (cellExtras passthrough). Header cells and body cells that only need
-// cellExtras / featureFlags read from here and skip re-renders driven by
+// featureFlags read from here and skip re-renders driven by
 // handler-identity churn.
 export type DataGridConfigValue = {
-  cellExtras: Record<string, unknown>;
   featureFlags: DataGridFeatureFlags;
 };
 

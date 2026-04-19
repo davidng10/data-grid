@@ -2,6 +2,10 @@ import { memo } from "react";
 import { flexRender } from "@tanstack/react-table";
 import clsx from "clsx";
 
+import { useDataGridConfig } from "../../hooks/useDataGridContext";
+import { HeaderMenu } from "./HeaderMenu";
+import { ResizeHandle } from "./ResizeHandle";
+
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import type { Header } from "@tanstack/react-table";
@@ -12,9 +16,6 @@ import type {
 } from "react";
 import type { DataGridColumnDef } from "../../types";
 
-import { useDataGridConfig } from "../../hooks/useDataGridContext";
-import { HeaderMenu } from "./HeaderMenu";
-import { ResizeHandle } from "./ResizeHandle";
 import styles from "../../DataGrid.module.css";
 
 type SortDir = false | "asc" | "desc";
