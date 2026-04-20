@@ -11,7 +11,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 
 import { BodyRow } from "./components/body/BodyRow";
-import { OverlayColumnShadow } from "./components/body/OverlapColumnShadow";
+import { ColumnShadowOverlay } from "./components/body/ColumnShadowOverlay";
 import { HeaderRow } from "./components/header/HeaderRow";
 import {
   DEFAULT_HEADER_HEIGHT,
@@ -322,8 +322,6 @@ function DataGridInner<TRow>(
 
   const showEmptyState = !isLoading && data.length === 0;
 
-  // Dev-mode unbounded-height warning. Vite substitutes process.env.NODE_ENV
-  // at build time, so this branch compiles out of production bundles.
   useEffect(() => {
     if (process.env.NODE_ENV === "production") return;
     const el = bodyRef.current;
@@ -331,9 +329,7 @@ function DataGridInner<TRow>(
     if (el.clientHeight === el.scrollHeight && data.length > 50) {
       console.warn(
         "[DataGrid] The scroll container has unbounded height " +
-          "(clientHeight === scrollHeight) while rendering more than 50 rows. " +
-          "This usually means an ancestor has `height: auto` or a flex child " +
-          "is missing `min-height: 0`.",
+          "(clientHeight === scrollHeight) while rendering more than 50 rows. ",
       );
     }
   }, [data.length]);
@@ -349,10 +345,10 @@ function DataGridInner<TRow>(
               tabIndex={0}
               onKeyDown={range.onBodyKeyDown}
             >
-              <OverlayColumnShadow
-                visibleLeafColumns={visibleLeafColumns}
+              <ColumnShadowOverlay
                 scrollContainerRef={bodyRef}
                 virtualSpacerRef={virtualSpacerRef}
+                visibleLeafColumns={visibleLeafColumns}
               />
               {headerGroups.map((hg) => (
                 <HeaderRow

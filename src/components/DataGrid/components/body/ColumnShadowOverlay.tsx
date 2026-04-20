@@ -6,7 +6,7 @@ import type { RefObject } from "react";
 
 import styles from "../../DataGrid.module.css";
 
-interface OverlayColumnShadowProps<TRow> {
+interface ColumnShadowOverlayProps<TRow> {
   visibleLeafColumns: Column<TRow, unknown>[];
   scrollContainerRef: RefObject<HTMLDivElement | null>;
   virtualSpacerRef: RefObject<HTMLDivElement | null>;
@@ -19,11 +19,11 @@ interface OverlayColumnShadowProps<TRow> {
  *
  * `edgeShadows` and `viewport` live here (not in the parent DataGrid) so
  * scroll-threshold crossings and resizes re-render this subtree only. */
-export function OverlayColumnShadow<TRow>({
+export function ColumnShadowOverlay<TRow>({
   visibleLeafColumns,
   scrollContainerRef,
   virtualSpacerRef,
-}: OverlayColumnShadowProps<TRow>) {
+}: ColumnShadowOverlayProps<TRow>) {
   const [edgeShadows, setEdgeShadows] = useState({
     left: false,
     right: false,
