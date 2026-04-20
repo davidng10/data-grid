@@ -5,7 +5,7 @@ type UseRowSelectionOptions = {
   // Row ids on the current page, in render order. Used for shift-click range
   // resolution and the header tri-state.
   pageRowIds: string[];
-  rowSelection: Record<string, boolean>;
+  rowSelection?: Record<string, boolean>;
   onRowSelectionChange?: (next: Record<string, boolean>) => void;
   // Identity that flips on page / sort / filter changes — clears the
   // shift-click anchor so it can't accidentally reach across pages.
@@ -32,13 +32,13 @@ export function useRowSelection(
   } = opts;
 
   const anchorRef = useRef<number | null>(null);
-  const rowSelectionRef = useRef(rowSelection);
+  const rowSelectionRef = useRef(rowSelection ?? {});
   const pageRowIdsRef = useRef(pageRowIds);
   const onChangeRef = useRef(onRowSelectionChange);
   // useLayoutEffect (not assignment-during-render) keeps refs lint-clean and
   // ensures they're updated before any commit-phase event handler fires.
   useLayoutEffect(() => {
-    rowSelectionRef.current = rowSelection;
+    rowSelectionRef.current = rowSelection ?? {};
     pageRowIdsRef.current = pageRowIds;
     onChangeRef.current = onRowSelectionChange;
   });

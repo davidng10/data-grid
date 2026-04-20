@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { isPointInRange } from "../utils/rangeSelection";
+import { shouldClearRangeForVisibilityChange } from "../utils/rangeVisibility";
 
 import type {
   KeyboardEvent as ReactKeyboardEvent,
@@ -55,8 +56,21 @@ type UseCellRangeSelectionOptions<TRow> = {
   onRangeSelectionChange?: (range: CellRangeSelection | null) => void;
 };
 
+// Digest of the current range, precomputed once per range change so body rows
+// can read per-cell state in O(1). `null` when no range is active; body rows
+// receive `null` rangeForRow and memo-bail on pointer compare.
+export type RangeProjection = {
+  rowMin: number;
+  rowMax: number;
+  anchorRowIndex: number;
+  anchorColumnId: string;
+  focusRowIndex: number;
+  focusColumnId: string;
+  inRangeColumnIds: Set<string>;
+};
+
 export type UseCellRangeSelectionResult = {
-  cellRangeSelection: CellRangeSelection | null;
+  rangeProjection: RangeProjection | null;
   clearRange: () => void;
 
   onCellMouseDown: (
@@ -79,6 +93,29 @@ function endpointsEqual(
 ): boolean {
   return a.rowIndex === b.rowIndex && a.columnId === b.columnId;
 }
+
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function sliceColumns<TRow>(
+  visibleColumns: DataGridColumnDef<TRow>[],
+  visualIds: string[],
+  range: CellRangeSelection,
+): DataGridColumnDef<TRow>[] {
+  const aIdx = visualIds.indexOf(range.anchor.columnId);
+  const fIdx = visualIds.indexOf(range.focus.columnId);
+  if (aIdx < 0 || fIdx < 0) return [];
+  const cMin = Math.min(aIdx, fIdx);
+  const cMax = Math.max(aIdx, fIdx);
+  const sliceIds = visualIds.slice(cMin, cMax + 1);
+  const byId = new Map(visibleColumns.map((c) => [c.id, c]));
+  return sliceIds
+    .map((id) => byId.get(id))
+    .filter((c): c is DataGridColumnDef<TRow> => c !== undefined);
+}
+
 
 export function useCellRangeSelection<TRow>(
   opts: UseCellRangeSelectionOptions<TRow>,
@@ -157,9 +194,60 @@ export function useCellRangeSelection<TRow>(
     focusedRef.current = null;
   }, [pageIdentity]);
 
+  // Range visibility-change reconciliation: if the active range covers a
+  // column that just became hidden, clear the range. Triggered only on
+  // visualColumnIds changes; the range itself is read via ref so drag updates
+  // don't re-run this effect.
+  const lastVisualIdsRef = useRef(visualColumnIds);
+  useEffect(() => {
+    const prev = lastVisualIdsRef.current;
+    lastVisualIdsRef.current = visualColumnIds;
+    if (
+      shouldClearRangeForVisibilityChange(
+        prev,
+        visualColumnIds,
+        rangeRef.current,
+      )
+    ) {
+      setCellRangeSelection(null);
+    }
+  }, [visualColumnIds]);
+
   const clearRange = useCallback(() => {
     setCellRangeSelection(null);
   }, []);
+
+  // Digest the range into a shape body rows can use in O(1). Computed once
+  // per range change — one visualColumnIds indexOf pair + a Set build. Body
+  // rows slice this into per-row state; rows outside [rowMin, rowMax] receive
+  // `null` and memo-bail.
+  const rangeProjection = useMemo<RangeProjection | null>(() => {
+    if (!cellRangeSelection) return null;
+    const aColIdx = visualColumnIds.indexOf(cellRangeSelection.anchor.columnId);
+    const fColIdx = visualColumnIds.indexOf(cellRangeSelection.focus.columnId);
+    if (aColIdx < 0 || fColIdx < 0) return null;
+    const cMin = Math.min(aColIdx, fColIdx);
+    const cMax = Math.max(aColIdx, fColIdx);
+    const inRangeColumnIds = new Set<string>();
+    for (let i = cMin; i <= cMax; i++) {
+      inRangeColumnIds.add(visualColumnIds[i]);
+    }
+    return {
+      rowMin: Math.min(
+        cellRangeSelection.anchor.rowIndex,
+        cellRangeSelection.focus.rowIndex,
+      ),
+      rowMax: Math.max(
+        cellRangeSelection.anchor.rowIndex,
+        cellRangeSelection.focus.rowIndex,
+      ),
+      anchorRowIndex: cellRangeSelection.anchor.rowIndex,
+      anchorColumnId: cellRangeSelection.anchor.columnId,
+      focusRowIndex: cellRangeSelection.focus.rowIndex,
+      focusColumnId: cellRangeSelection.focus.columnId,
+      inRangeColumnIds,
+    };
+  }, [cellRangeSelection, visualColumnIds]);
 
   // Auto-scroll loop while dragging. Reads cursor position from a ref written
   // by the document-level mousemove listener (registered on drag start).
@@ -433,7 +521,7 @@ export function useCellRangeSelection<TRow>(
 
   return useMemo(
     () => ({
-      cellRangeSelection,
+      rangeProjection,
       clearRange,
       onCellMouseDown,
       onCellMouseEnter,
@@ -441,7 +529,7 @@ export function useCellRangeSelection<TRow>(
       onBodyKeyDown,
     }),
     [
-      cellRangeSelection,
+      rangeProjection,
       clearRange,
       onCellMouseDown,
       onCellMouseEnter,
@@ -449,25 +537,4 @@ export function useCellRangeSelection<TRow>(
       onBodyKeyDown,
     ],
   );
-}
-
-function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n));
-}
-
-function sliceColumns<TRow>(
-  visibleColumns: DataGridColumnDef<TRow>[],
-  visualIds: string[],
-  range: CellRangeSelection,
-): DataGridColumnDef<TRow>[] {
-  const aIdx = visualIds.indexOf(range.anchor.columnId);
-  const fIdx = visualIds.indexOf(range.focus.columnId);
-  if (aIdx < 0 || fIdx < 0) return [];
-  const cMin = Math.min(aIdx, fIdx);
-  const cMax = Math.max(aIdx, fIdx);
-  const sliceIds = visualIds.slice(cMin, cMax + 1);
-  const byId = new Map(visibleColumns.map((c) => [c.id, c]));
-  return sliceIds
-    .map((id) => byId.get(id))
-    .filter((c): c is DataGridColumnDef<TRow> => c !== undefined);
 }
