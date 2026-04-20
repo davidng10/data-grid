@@ -4,7 +4,6 @@ import { useDataGridTransitions } from "./useDataGridTransitions";
 
 import type { OnChangeFn } from "@tanstack/react-table";
 import type {
-  CellRangeSelection,
   ColumnConfigState,
   ColumnPinningState,
   DataGridColumnDef,
@@ -194,10 +193,6 @@ export type UseDataGridResult<TRow, TFilters> = {
     rowIds: string[];
     clear: () => void;
   };
-  rangeSelection: {
-    current: CellRangeSelection | null;
-    clear: () => void;
-  };
 };
 
 export function useDataGrid<TRow, TFilters>(
@@ -230,7 +225,7 @@ export function useDataGrid<TRow, TFilters>(
   }, [effectiveColumnConfig, columnConfig, onColumnConfigChange]);
 
   const { state: transitions, actions: tx } = useDataGridTransitions();
-  const { rowSelection, cellRangeSelection, activeEditor } = transitions;
+  const { rowSelection, activeEditor } = transitions;
 
   const setPage = useCallback(
     (pageIndex: number) => {
@@ -390,9 +385,6 @@ export function useDataGrid<TRow, TFilters>(
       rowSelection,
       onRowSelectionChange: tx.setRowSelection,
 
-      cellRangeSelection,
-      onCellRangeSelectionChange: tx.setCellRangeSelection,
-
       columnVisibility: effectiveColumnConfig.columnVisibility,
       onColumnVisibilityChange,
 
@@ -413,7 +405,6 @@ export function useDataGrid<TRow, TFilters>(
       view.sorting,
       pagination,
       rowSelection,
-      cellRangeSelection,
       activeEditor,
       effectiveColumnConfig,
       tx,
@@ -436,14 +427,6 @@ export function useDataGrid<TRow, TFilters>(
     [rowSelection, tx],
   );
 
-  const rangeSelectionResult = useMemo(
-    () => ({
-      current: cellRangeSelection,
-      clear: () => tx.setCellRangeSelection(null),
-    }),
-    [cellRangeSelection, tx],
-  );
-
   return {
     gridProps,
     setPage,
@@ -451,6 +434,5 @@ export function useDataGrid<TRow, TFilters>(
     setSort,
     setFilters,
     selection,
-    rangeSelection: rangeSelectionResult,
   };
 }

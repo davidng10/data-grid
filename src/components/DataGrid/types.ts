@@ -42,12 +42,13 @@ export type CellRange = {
 
 export type CellRangeSelection = CellRange;
 
-export type DataGridHandle = {
+export type DataGridRef = {
   scrollToRow: (
     rowIndex: number,
     options?: { align?: "start" | "center" | "end" },
   ) => void;
   scrollToTop: () => void;
+  clearRange: () => void;
 };
 
 export type DataGridView<TFilters> = {
@@ -122,9 +123,6 @@ export type DataGridProps<TRow> = {
   rowSelection?: Record<string, boolean>;
   onRowSelectionChange?: OnChangeFn<Record<string, boolean>>;
 
-  cellRangeSelection?: CellRangeSelection | null;
-  onCellRangeSelectionChange?: OnChangeFn<CellRangeSelection | null>;
-
   columnVisibility?: Record<string, boolean>;
   onColumnVisibilityChange?: OnChangeFn<Record<string, boolean>>;
 
@@ -169,6 +167,13 @@ export type DataGridProps<TRow> = {
     range: CellRange,
     ctx: RangeCopyContext<TRow>,
   ) => string | null | void;
+  // Fire-and-forget observer. Called after the grid's internal range state
+  // changes — drag updates, arrow-nav, Ctrl+A, Escape, programmatic clear,
+  // page/sort/filter auto-clears. Does NOT drive rendering (range state is
+  // owned internally); use for analytics, live summaries, etc. Do not feed
+  // the value back in via setState — that would recreate the cascade this
+  // API is designed to avoid.
+  onRangeSelectionChange?: (range: CellRange | null) => void;
 
   emptyState?: ReactNode;
   className?: string;

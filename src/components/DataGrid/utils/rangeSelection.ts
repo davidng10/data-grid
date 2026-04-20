@@ -17,13 +17,3 @@ export function isPointInRange(
   const cMax = Math.max(aIdx, fIdx);
   return cIdx >= cMin && cIdx <= cMax;
 }
-
-export function isCellInRange(
-  rowIndex: number,
-  columnId: string,
-  range: CellRangeSelection | null,
-  visualIds: string[],
-): boolean {
-  if (!range) return false;
-  return isPointInRange(rowIndex, columnId, range, visualIds);
-}

@@ -34,9 +34,6 @@ type UseCellRangeSelectionOptions<TRow> = {
   enabled: boolean;
   bodyRef: RefObject<HTMLDivElement | null>;
 
-  cellRangeSelection: CellRangeSelection | null;
-  onCellRangeSelectionChange?: (next: CellRangeSelection | null) => void;
-
   // Visible columns in current visual order. Used for arrow nav, Ctrl+A, and
   // the columns slice handed to onRangeCopy.
   visualColumnIds: string[];
@@ -44,8 +41,8 @@ type UseCellRangeSelectionOptions<TRow> = {
 
   rowCount: number;
 
-  // Identity that flips on page / sort / filter / page-size change. Drives
-  // focused-cell reset.
+  // Identity that flips on page / sort / filter / page-size change. Clears
+  // the range and the focused cell when it flips.
   pageIdentity: unknown;
 
   getCellValue: (rowIndex: number, columnId: string) => unknown;
@@ -55,10 +52,12 @@ type UseCellRangeSelectionOptions<TRow> = {
     range: CellRange,
     ctx: RangeCopyContext<TRow>,
   ) => string | null | void;
+  onRangeSelectionChange?: (range: CellRangeSelection | null) => void;
 };
 
 export type UseCellRangeSelectionResult = {
-  focusedCell: FocusedCell;
+  cellRangeSelection: CellRangeSelection | null;
+  clearRange: () => void;
 
   onCellMouseDown: (
     rowIndex: number,
@@ -87,8 +86,6 @@ export function useCellRangeSelection<TRow>(
   const {
     enabled,
     bodyRef,
-    cellRangeSelection,
-    onCellRangeSelectionChange,
     visualColumnIds,
     visibleColumns,
     rowCount,
@@ -96,48 +93,73 @@ export function useCellRangeSelection<TRow>(
     getCellValue,
     onRangeContextMenu,
     onRangeCopy,
+    onRangeSelectionChange,
   } = opts;
 
-  const [focusedCell, setFocusedCell] = useState<FocusedCell>(null);
+  // Range is owned here. No external controlled prop — consumers observe via
+  // onRangeContextMenu / onRangeCopy callbacks, or drive clear via the
+  // imperative clearRange method below.
+  const [cellRangeSelection, setCellRangeSelection] =
+    useState<CellRangeSelection | null>(null);
 
-  // Mirror props/state to refs so the stable handlers below can read the
+  // focusedCell is a ref, not state: nothing outside the hook reads it, and
+  // every arrow-key / mouseenter also dispatches setCellRangeSelection, which
+  // re-renders. Holding focused as state would cause a redundant second
+  // re-render with no visible effect.
+  const focusedRef = useRef<FocusedCell>(null);
+
+  // Mirror state/props to refs so the stable handlers below can read the
   // latest values without their identity changing on every render. Updates
   // happen in useLayoutEffect so the refs are current before any commit-phase
   // event handler fires.
   const isDraggingRef = useRef(false);
-  const rangeRef = useRef(cellRangeSelection);
-  const focusedRef = useRef(focusedCell);
+  const rangeRef = useRef<CellRangeSelection | null>(null);
   const visualIdsRef = useRef(visualColumnIds);
   const visibleColumnsRef = useRef(visibleColumns);
   const rowCountRef = useRef(rowCount);
   const enabledRef = useRef(enabled);
   const getCellValueRef = useRef(getCellValue);
-  const onCellRangeSelectionChangeRef = useRef(onCellRangeSelectionChange);
   const onRangeContextMenuRef = useRef(onRangeContextMenu);
   const onRangeCopyRef = useRef(onRangeCopy);
+  const onRangeSelectionChangeRef = useRef(onRangeSelectionChange);
 
   useLayoutEffect(() => {
     rangeRef.current = cellRangeSelection;
-    focusedRef.current = focusedCell;
     visualIdsRef.current = visualColumnIds;
     visibleColumnsRef.current = visibleColumns;
     rowCountRef.current = rowCount;
     enabledRef.current = enabled;
     getCellValueRef.current = getCellValue;
-    onCellRangeSelectionChangeRef.current = onCellRangeSelectionChange;
     onRangeContextMenuRef.current = onRangeContextMenu;
     onRangeCopyRef.current = onRangeCopy;
+    onRangeSelectionChangeRef.current = onRangeSelectionChange;
   });
 
-  // Clear focused cell when the page identity changes. Uses the
-  // "store-prev-prop" pattern (React docs: "Adjusting state when a prop
-  // changes") rather than useEffect — avoids the cascading-render lint rule
-  // and resets in the same render pass instead of one frame later.
-  const [prevPageIdentity, setPrevPageIdentity] = useState(pageIdentity);
-  if (prevPageIdentity !== pageIdentity) {
-    setPrevPageIdentity(pageIdentity);
-    setFocusedCell(null);
-  }
+  // Fire the observer callback after each range state change. Runs in an
+  // effect (not a layout effect) so the DOM commit happens first — consumers
+  // using the callback for live summaries, analytics, etc. should not block
+  // the frame. Skip the mount-time fire since the initial `null` is a
+  // starting state, not a change.
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    onRangeSelectionChangeRef.current?.(cellRangeSelection);
+  }, [cellRangeSelection]);
+
+  // Clear range + focused cell whenever page identity flips (pagination /
+  // sort / filter / page-size). Replaces the external reducer's equivalent
+  // clears — now owned here since range state is internal.
+  useLayoutEffect(() => {
+    setCellRangeSelection(null);
+    focusedRef.current = null;
+  }, [pageIdentity]);
+
+  const clearRange = useCallback(() => {
+    setCellRangeSelection(null);
+  }, []);
 
   // Auto-scroll loop while dragging. Reads cursor position from a ref written
   // by the document-level mousemove listener (registered on drag start).
@@ -205,7 +227,7 @@ export function useCellRangeSelection<TRow>(
       if (!el) return;
       if (!el.contains(e.target as Node)) {
         if (rangeRef.current !== null) {
-          onCellRangeSelectionChangeRef.current?.(null);
+          setCellRangeSelection(null);
         }
       }
     };
@@ -222,9 +244,7 @@ export function useCellRangeSelection<TRow>(
     };
   }, [enabled, bodyRef, stopAutoScroll]);
 
-  const setRange = useCallback((next: CellRangeSelection | null) => {
-    onCellRangeSelectionChangeRef.current?.(next);
-  }, []);
+  const setRange = setCellRangeSelection;
 
   const onCellMouseDown = useCallback(
     (
@@ -244,7 +264,7 @@ export function useCellRangeSelection<TRow>(
       } else {
         setRange({ anchor: point, focus: point });
       }
-      setFocusedCell(point);
+      focusedRef.current = point;
 
       isDraggingRef.current = true;
       cursorRef.current = { x: e.clientX, y: e.clientY };
@@ -270,7 +290,7 @@ export function useCellRangeSelection<TRow>(
         return;
       }
       setRange(next);
-      setFocusedCell(next.focus);
+      focusedRef.current = next.focus;
     },
     [setRange],
   );
@@ -295,7 +315,7 @@ export function useCellRangeSelection<TRow>(
         const point = { rowIndex, columnId };
         nextRange = { anchor: point, focus: point };
         setRange(nextRange);
-        setFocusedCell(point);
+        focusedRef.current = point;
       }
       e.preventDefault();
       onRangeContextMenuRef.current(e.nativeEvent, nextRange);
@@ -321,7 +341,7 @@ export function useCellRangeSelection<TRow>(
           columnId: ids[ids.length - 1],
         };
         setRange({ anchor, focus });
-        setFocusedCell(focus);
+        focusedRef.current = focus;
         return;
       }
 
@@ -406,21 +426,23 @@ export function useCellRangeSelection<TRow>(
       } else {
         setRange({ anchor: nextPoint, focus: nextPoint });
       }
-      setFocusedCell(nextPoint);
+      focusedRef.current = nextPoint;
     },
     [setRange],
   );
 
   return useMemo(
     () => ({
-      focusedCell,
+      cellRangeSelection,
+      clearRange,
       onCellMouseDown,
       onCellMouseEnter,
       onCellContextMenu,
       onBodyKeyDown,
     }),
     [
-      focusedCell,
+      cellRangeSelection,
+      clearRange,
       onCellMouseDown,
       onCellMouseEnter,
       onCellContextMenu,

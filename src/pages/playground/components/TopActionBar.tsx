@@ -12,6 +12,7 @@ interface TopActionBarProps {
   totalCount: number;
   setColumnsModalOpen: (open: boolean) => void;
   scrollToTop: () => void;
+  clearRange: () => void;
 }
 
 export const TopActionBar = ({
@@ -21,6 +22,7 @@ export const TopActionBar = ({
   totalCount,
   setColumnsModalOpen,
   scrollToTop,
+  clearRange,
 }: TopActionBarProps) => {
   return (
     <div
@@ -109,7 +111,7 @@ export const TopActionBar = ({
       <Button size="small" onClick={() => grid.selection.clear()}>
         Clear row selection
       </Button>
-      <Button size="small" onClick={() => grid.rangeSelection.clear()}>
+      <Button size="small" onClick={clearRange}>
         Clear range
       </Button>
     </div>

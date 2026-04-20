@@ -1,14 +1,15 @@
 import { useCallback, useMemo, useReducer } from "react";
 
 import type { OnChangeFn } from "@tanstack/react-table";
-import type { ActiveEditorState, CellRangeSelection } from "../types";
+import type { ActiveEditorState } from "../types";
 
 // Transient state the grid owns end-to-end (not controlled by the caller).
 // `view` and `columnConfig` are deliberately excluded — they stay caller-owned
 // so URL / localStorage / server persistence strategies remain pluggable.
+// `cellRangeSelection` is also excluded — it's owned inside DataGrid itself
+// (cleared imperatively via the DataGridHandle), not routed through here.
 export type DataGridTransitionsState = {
   rowSelection: Record<string, boolean>;
-  cellRangeSelection: CellRangeSelection | null;
   activeEditor: ActiveEditorState;
 };
 
@@ -29,15 +30,10 @@ type Action =
   // Direct setters — shaped as TanStack-style updaters so they compose with
   // the OnChangeFn callbacks the grid already uses.
   | { type: "rowSelectionSet"; updater: Updater<Record<string, boolean>> }
-  | {
-      type: "cellRangeSelectionSet";
-      updater: Updater<CellRangeSelection | null>;
-    }
   | { type: "activeEditorSet"; updater: Updater<ActiveEditorState> };
 
 const INITIAL_STATE: DataGridTransitionsState = {
   rowSelection: {},
-  cellRangeSelection: null,
   activeEditor: null,
 };
 
@@ -47,27 +43,19 @@ function reducer(
 ): DataGridTransitionsState {
   switch (action.type) {
     case "pageChanged":
-      if (state.cellRangeSelection === null) return state;
-      return { ...state, cellRangeSelection: null };
+      return state;
 
     case "sortChanged":
     case "filtersChanged": {
       const hasRowSel = Object.keys(state.rowSelection).length > 0;
-      const hasRange = state.cellRangeSelection !== null;
-      if (!hasRowSel && !hasRange) return state;
-      return { ...state, rowSelection: {}, cellRangeSelection: null };
+      if (!hasRowSel) return state;
+      return { ...state, rowSelection: {} };
     }
 
     case "rowSelectionSet": {
       const next = resolveUpdater(action.updater, state.rowSelection);
       if (next === state.rowSelection) return state;
       return { ...state, rowSelection: next };
-    }
-
-    case "cellRangeSelectionSet": {
-      const next = resolveUpdater(action.updater, state.cellRangeSelection);
-      if (next === state.cellRangeSelection) return state;
-      return { ...state, cellRangeSelection: next };
     }
 
     case "activeEditorSet": {
@@ -86,7 +74,6 @@ export type DataGridTransitionsActions = {
   // OnChangeFn-shaped — safe to hand directly to TanStack / DataGrid as the
   // matching on*Change prop.
   setRowSelection: OnChangeFn<Record<string, boolean>>;
-  setCellRangeSelection: OnChangeFn<CellRangeSelection | null>;
   setActiveEditor: OnChangeFn<ActiveEditorState>;
 };
 
@@ -109,9 +96,6 @@ export function useDataGridTransitions(): UseDataGridTransitionsResult {
     (updater) => dispatch({ type: "rowSelectionSet", updater }),
     [],
   );
-  const setCellRangeSelection = useCallback<
-    OnChangeFn<CellRangeSelection | null>
-  >((updater) => dispatch({ type: "cellRangeSelectionSet", updater }), []);
   const setActiveEditor = useCallback<OnChangeFn<ActiveEditorState>>(
     (updater) => dispatch({ type: "activeEditorSet", updater }),
     [],
@@ -123,7 +107,6 @@ export function useDataGridTransitions(): UseDataGridTransitionsResult {
       sortChanged,
       filtersChanged,
       setRowSelection,
-      setCellRangeSelection,
       setActiveEditor,
     }),
     [
@@ -131,7 +114,6 @@ export function useDataGridTransitions(): UseDataGridTransitionsResult {
       sortChanged,
       filtersChanged,
       setRowSelection,
-      setCellRangeSelection,
       setActiveEditor,
     ],
   );

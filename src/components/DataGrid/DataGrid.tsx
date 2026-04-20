@@ -30,24 +30,25 @@ import { useRowSelection } from "./hooks/useRowSelection";
 import { shouldClearRangeForVisibilityChange } from "./utils/rangeVisibility";
 
 import type { ForwardedRef, ReactElement } from "react";
+import type { RangeRowState } from "./components/body/BodyRow";
 import type {
   DataGridActionsValue,
   DataGridConfigValue,
   DataGridFeatureFlags,
 } from "./hooks/useDataGridContext";
-import type { DataGridColumnDef, DataGridHandle, DataGridProps } from "./types";
+import type { DataGridColumnDef, DataGridProps, DataGridRef } from "./types";
 
 import styles from "./DataGrid.module.css";
 
 declare const process: { readonly env: { readonly NODE_ENV: string } };
 
 type DataGridComponent = <TRow>(
-  props: DataGridProps<TRow> & { ref?: ForwardedRef<DataGridHandle> },
+  props: DataGridProps<TRow> & { ref?: ForwardedRef<DataGridRef> },
 ) => ReactElement;
 
 function DataGridInner<TRow>(
   props: DataGridProps<TRow>,
-  ref: ForwardedRef<DataGridHandle>,
+  ref: ForwardedRef<DataGridRef>,
 ): ReactElement {
   const {
     data,
@@ -61,8 +62,6 @@ function DataGridInner<TRow>(
     onPaginationChange,
     rowSelection,
     onRowSelectionChange,
-    cellRangeSelection,
-    onCellRangeSelectionChange,
     columnVisibility,
     onColumnVisibilityChange,
     columnOrder,
@@ -86,6 +85,7 @@ function DataGridInner<TRow>(
     className,
     onRangeContextMenu,
     onRangeCopy,
+    onRangeSelectionChange,
   } = props;
 
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -166,19 +166,6 @@ function DataGridInner<TRow>(
   const virtualRows = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
 
-  useImperativeHandle(
-    ref,
-    (): DataGridHandle => ({
-      scrollToRow: (rowIndex, options) => {
-        rowVirtualizer.scrollToIndex(rowIndex, options);
-      },
-      scrollToTop: () => {
-        if (bodyRef.current) bodyRef.current.scrollTop = 0;
-      },
-    }),
-    [rowVirtualizer],
-  );
-
   const featureFlags = useMemo<DataGridFeatureFlags>(
     () => ({
       sorting: allowSorting,
@@ -231,13 +218,6 @@ function DataGridInner<TRow>(
   const range = useCellRangeSelection<TRow>({
     enabled: allowRangeSelection,
     bodyRef,
-    cellRangeSelection: cellRangeSelection ?? null,
-    onCellRangeSelectionChange: onCellRangeSelectionChange
-      ? (next) => {
-          // Updater is value or fn; we always pass a value here.
-          (onCellRangeSelectionChange as (n: typeof next) => void)(next);
-        }
-      : undefined,
     visualColumnIds,
     visibleColumns: visibleDgColumns,
     rowCount: data.length,
@@ -245,7 +225,56 @@ function DataGridInner<TRow>(
     getCellValue,
     onRangeContextMenu,
     onRangeCopy,
+    onRangeSelectionChange,
   });
+
+  const cellRangeSelection = range.cellRangeSelection;
+
+  // Digest the range into a shape body rows can use in O(1). Computed once per
+  // DataGrid render instead of re-derived per cell: one visualColumnIds
+  // indexOf pair + a Set build, then each row reads scalars. Out-of-range rows
+  // receive `null` below and memo-bail on pointer compare.
+  const rangeProjection = useMemo(() => {
+    if (!cellRangeSelection) return null;
+    const aColIdx = visualColumnIds.indexOf(cellRangeSelection.anchor.columnId);
+    const fColIdx = visualColumnIds.indexOf(cellRangeSelection.focus.columnId);
+    if (aColIdx < 0 || fColIdx < 0) return null;
+    const cMin = Math.min(aColIdx, fColIdx);
+    const cMax = Math.max(aColIdx, fColIdx);
+    const inRangeColumnIds = new Set<string>();
+    for (let i = cMin; i <= cMax; i++) {
+      inRangeColumnIds.add(visualColumnIds[i]);
+    }
+    return {
+      rowMin: Math.min(
+        cellRangeSelection.anchor.rowIndex,
+        cellRangeSelection.focus.rowIndex,
+      ),
+      rowMax: Math.max(
+        cellRangeSelection.anchor.rowIndex,
+        cellRangeSelection.focus.rowIndex,
+      ),
+      anchorRowIndex: cellRangeSelection.anchor.rowIndex,
+      anchorColumnId: cellRangeSelection.anchor.columnId,
+      focusRowIndex: cellRangeSelection.focus.rowIndex,
+      focusColumnId: cellRangeSelection.focus.columnId,
+      inRangeColumnIds,
+    };
+  }, [cellRangeSelection, visualColumnIds]);
+
+  useImperativeHandle(
+    ref,
+    (): DataGridRef => ({
+      scrollToRow: (rowIndex, options) => {
+        rowVirtualizer.scrollToIndex(rowIndex, options);
+      },
+      scrollToTop: () => {
+        if (bodyRef.current) bodyRef.current.scrollTop = 0;
+      },
+      clearRange: range.clearRange,
+    }),
+    [rowVirtualizer, range.clearRange],
+  );
 
   // Row selection helpers. Page row ids in render order — not the selected
   // ids, but every visible row's id.
@@ -266,24 +295,22 @@ function DataGridInner<TRow>(
 
   // Range visibility-change reconciliation: if the active range covers a
   // column that just became hidden, clear the range. Lives here (not in the
-  // hook) because visibility is a column-config concern useDataGrid doesn't
-  // see directly. The decision predicate is a pure helper; the effect only
-  // bridges prev/next visualColumnIds and dispatches the clear.
+  // hook) because visibility is a column-config concern the hook doesn't see
+  // directly. The decision predicate is a pure helper.
   const lastVisualIdsRef = useRef(visualColumnIds);
   useEffect(() => {
     const prev = lastVisualIdsRef.current;
     lastVisualIdsRef.current = visualColumnIds;
-    if (!onCellRangeSelectionChange) return;
     if (
       shouldClearRangeForVisibilityChange(
         prev,
         visualColumnIds,
-        cellRangeSelection ?? null,
+        cellRangeSelection,
       )
     ) {
-      (onCellRangeSelectionChange as (n: null) => void)(null);
+      range.clearRange();
     }
-  }, [visualColumnIds, cellRangeSelection, onCellRangeSelectionChange]);
+  }, [visualColumnIds, cellRangeSelection, range]);
 
   const cellMouseHandlers = useMemo(
     () => ({
@@ -376,6 +403,22 @@ function DataGridInner<TRow>(
                   virtualRows.map((vr) => {
                     const row = rowModel.rows[vr.index];
                     if (!row) return null;
+                    const rangeForRow: RangeRowState | null =
+                      rangeProjection &&
+                      row.index >= rangeProjection.rowMin &&
+                      row.index <= rangeProjection.rowMax
+                        ? {
+                            inRangeColumnIds: rangeProjection.inRangeColumnIds,
+                            anchorColumnId:
+                              row.index === rangeProjection.anchorRowIndex
+                                ? rangeProjection.anchorColumnId
+                                : null,
+                            focusColumnId:
+                              row.index === rangeProjection.focusRowIndex
+                                ? rangeProjection.focusColumnId
+                                : null,
+                          }
+                        : null;
                     return (
                       <BodyRow
                         key={row.id}
@@ -383,8 +426,7 @@ function DataGridInner<TRow>(
                         top={vr.start}
                         height={rowHeight}
                         totalWidth={totalTableWidth}
-                        cellRangeSelection={cellRangeSelection ?? null}
-                        visualColumnIds={visualColumnIds}
+                        rangeForRow={rangeForRow}
                       />
                     );
                   })}

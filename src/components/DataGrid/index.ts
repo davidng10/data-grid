@@ -13,7 +13,7 @@ export type {
   DataGridCellAlign,
   DataGridCellProps,
   DataGridColumnDef,
-  DataGridHandle,
+  DataGridRef,
   DataGridProps,
   DataGridView,
   HeaderContext,

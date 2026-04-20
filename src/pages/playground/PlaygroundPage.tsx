@@ -14,7 +14,7 @@ import { useColumns } from "./hooks/useColumns";
 import type {
   CellRange,
   DataGridColumnDef,
-  DataGridHandle,
+  DataGridRef,
   DataGridView,
   SortingState,
 } from "../../components/DataGrid";
@@ -131,7 +131,7 @@ export const PlaygroundPage = () => {
     maxVisibleColumns: MAX_VISIBLE,
   });
 
-  const gridRef = useRef<DataGridHandle | null>(null);
+  const gridRef = useRef<DataGridRef | null>(null);
 
   const [columnsModalOpen, setColumnsModalOpen] = useState(false);
 
@@ -179,6 +179,7 @@ export const PlaygroundPage = () => {
           totalCount={totalCount}
           setColumnsModalOpen={setColumnsModalOpen}
           scrollToTop={() => gridRef.current?.scrollToTop()}
+          clearRange={() => gridRef.current?.clearRange()}
         />
       </div>
       <div

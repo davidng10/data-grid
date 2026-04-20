@@ -1,28 +1,36 @@
+import { memo } from "react";
+
 import { SELECT_COLUMN_ID } from "../../constants";
-import { isCellInRange } from "../../utils/rangeSelection";
 import { BodyCell } from "./BodyCell";
 
 import type { Row } from "@tanstack/react-table";
-import type { CellRangeSelection } from "../../types";
 
 import styles from "../../DataGrid.module.css";
+
+// Per-row slice of the range state, computed by DataGrid. `null` when the row
+// is outside the range's row span — React.memo then bails via pointer compare.
+// anchorColumnId / focusColumnId are only set on the anchor and focus rows
+// respectively; in-between rows hold null for both.
+export type RangeRowState = {
+  inRangeColumnIds: Set<string>;
+  anchorColumnId: string | null;
+  focusColumnId: string | null;
+};
 
 type BodyRowProps<TRow> = {
   row: Row<TRow>;
   top: number;
   height: number;
   totalWidth: number;
-  cellRangeSelection: CellRangeSelection | null;
-  visualColumnIds: string[];
+  rangeForRow: RangeRowState | null;
 };
 
-export function BodyRow<TRow>({
+function BodyRowRender<TRow>({
   row,
   top,
   height,
   totalWidth,
-  cellRangeSelection,
-  visualColumnIds,
+  rangeForRow,
 }: BodyRowProps<TRow>) {
   const cells = row.getVisibleCells();
   const isSelected = row.getIsSelected();
@@ -40,24 +48,18 @@ export function BodyRow<TRow>({
         // The __select__ column opts out of range-selection mouse handlers so
         // clicking a checkbox doesn't start a drag / clear the current range.
         const wireRangeHandlers = !isSelectColumn;
-        const inRange = wireRangeHandlers
-          ? isCellInRange(
-              row.index,
-              columnId,
-              cellRangeSelection,
-              visualColumnIds,
-            )
-          : false;
+        const inRange =
+          wireRangeHandlers && rangeForRow !== null
+            ? rangeForRow.inRangeColumnIds.has(columnId)
+            : false;
         const isRangeAnchor =
           wireRangeHandlers &&
-          cellRangeSelection !== null &&
-          cellRangeSelection.anchor.rowIndex === row.index &&
-          cellRangeSelection.anchor.columnId === columnId;
+          rangeForRow !== null &&
+          rangeForRow.anchorColumnId === columnId;
         const isRangeFocus =
           wireRangeHandlers &&
-          cellRangeSelection !== null &&
-          cellRangeSelection.focus.rowIndex === row.index &&
-          cellRangeSelection.focus.columnId === columnId;
+          rangeForRow !== null &&
+          rangeForRow.focusColumnId === columnId;
         return (
           <BodyCell
             key={cell.id}
@@ -79,3 +81,5 @@ export function BodyRow<TRow>({
     </div>
   );
 }
+
+export const BodyRow = memo(BodyRowRender) as typeof BodyRowRender;

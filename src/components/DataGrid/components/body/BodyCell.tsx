@@ -69,7 +69,7 @@ function BodyCellRender<TRow>({
     row,
     rowId,
     rowIndex,
-    column: dgColumn satisfies DataGridColumnDef<TRow, unknown>,
+    column: dgColumn as unknown as DataGridColumnDef<TRow, unknown>,
     value,
     align,
     isEditing: false,
