@@ -202,6 +202,10 @@ export const PlaygroundPage = () => {
           allowSorting
           allowPinning
           allowRangeSelection
+          allowReorder
+          allowResize
+          allowColumnVisibility
+          allowRowSelection
         />
       </div>
 

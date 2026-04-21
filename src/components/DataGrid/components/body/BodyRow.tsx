@@ -1,5 +1,3 @@
-import { memo } from "react";
-
 import { SELECT_COLUMN_ID } from "../../constants";
 import { BodyCell } from "./BodyCell";
 
@@ -8,9 +6,9 @@ import type { Row } from "@tanstack/react-table";
 import styles from "../../DataGrid.module.css";
 
 // Per-row slice of the range state, computed by DataGrid. `null` when the row
-// is outside the range's row span — React.memo then bails via pointer compare.
-// anchorColumnId / focusColumnId are only set on the anchor and focus rows
-// respectively; in-between rows hold null for both.
+// is outside the range's row span. anchorColumnId / focusColumnId are only
+// set on the anchor and focus rows respectively; in-between rows hold null
+// for both.
 export type RangeRowState = {
   inRangeColumnIds: Set<string>;
   anchorColumnId: string | null;
@@ -25,7 +23,7 @@ type BodyRowProps<TRow> = {
   rangeForRow: RangeRowState | null;
 };
 
-function BodyRowRender<TRow>({
+export function BodyRow<TRow>({
   row,
   top,
   height,
@@ -81,5 +79,3 @@ function BodyRowRender<TRow>({
     </div>
   );
 }
-
-export const BodyRow = memo(BodyRowRender) as typeof BodyRowRender;
