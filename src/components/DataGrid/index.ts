@@ -4,7 +4,7 @@ export { CheckboxCell } from "./components/cells/CheckboxCell";
 export { defaultRangeToTSV } from "./utils/defaultRangeToTSV";
 
 export type {
-  ActiveEditorState,
+  EditingCellState,
   CellRange,
   CellRangeEndpoint,
   CellRangeSelection,

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useReducer } from "react";
 
 import type { OnChangeFn } from "@tanstack/react-table";
-import type { ActiveEditorState } from "../types";
+import type { EditingCellState } from "../types";
 
 // Transient state the grid owns end-to-end (not controlled by the caller).
 // `view` and `columnConfig` are deliberately excluded — they stay caller-owned
@@ -10,7 +10,7 @@ import type { ActiveEditorState } from "../types";
 // (cleared imperatively via the DataGridHandle), not routed through here.
 export type DataGridTransitionsState = {
   rowSelection: Record<string, boolean>;
-  activeEditor: ActiveEditorState;
+  editingCell: EditingCellState;
 };
 
 type Updater<T> = T | ((old: T) => T);
@@ -30,11 +30,11 @@ type Action =
   // Direct setters — shaped as TanStack-style updaters so they compose with
   // the OnChangeFn callbacks the grid already uses.
   | { type: "rowSelectionSet"; updater: Updater<Record<string, boolean>> }
-  | { type: "activeEditorSet"; updater: Updater<ActiveEditorState> };
+  | { type: "editingCellSet"; updater: Updater<EditingCellState> };
 
 const INITIAL_STATE: DataGridTransitionsState = {
   rowSelection: {},
-  activeEditor: null,
+  editingCell: null,
 };
 
 function reducer(
@@ -58,10 +58,10 @@ function reducer(
       return { ...state, rowSelection: next };
     }
 
-    case "activeEditorSet": {
-      const next = resolveUpdater(action.updater, state.activeEditor);
-      if (next === state.activeEditor) return state;
-      return { ...state, activeEditor: next };
+    case "editingCellSet": {
+      const next = resolveUpdater(action.updater, state.editingCell);
+      if (next === state.editingCell) return state;
+      return { ...state, editingCell: next };
     }
   }
 }
@@ -74,7 +74,7 @@ export type DataGridTransitionsActions = {
   // OnChangeFn-shaped — safe to hand directly to TanStack / DataGrid as the
   // matching on*Change prop.
   setRowSelection: OnChangeFn<Record<string, boolean>>;
-  setActiveEditor: OnChangeFn<ActiveEditorState>;
+  setEditingCell: OnChangeFn<EditingCellState>;
 };
 
 export type UseDataGridTransitionsResult = {
@@ -96,8 +96,8 @@ export function useDataGridTransitions(): UseDataGridTransitionsResult {
     (updater) => dispatch({ type: "rowSelectionSet", updater }),
     [],
   );
-  const setActiveEditor = useCallback<OnChangeFn<ActiveEditorState>>(
-    (updater) => dispatch({ type: "activeEditorSet", updater }),
+  const setEditingCell = useCallback<OnChangeFn<EditingCellState>>(
+    (updater) => dispatch({ type: "editingCellSet", updater }),
     [],
   );
 
@@ -107,14 +107,14 @@ export function useDataGridTransitions(): UseDataGridTransitionsResult {
       sortChanged,
       filtersChanged,
       setRowSelection,
-      setActiveEditor,
+      setEditingCell,
     }),
     [
       pageChanged,
       sortChanged,
       filtersChanged,
       setRowSelection,
-      setActiveEditor,
+      setEditingCell,
     ],
   );
 

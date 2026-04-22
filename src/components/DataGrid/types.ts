@@ -24,10 +24,9 @@ export type ColumnPinningState = {
   right: string[];
 };
 
-export type ActiveEditorState = {
+export type EditingCellState = {
   rowId: string;
   columnId: string;
-  draftValue: unknown;
 } | null;
 
 export type CellRangeEndpoint = {
@@ -135,8 +134,8 @@ export type DataGridProps<TRow> = {
   columnPinning?: ColumnPinningState;
   onColumnPinningChange?: OnChangeFn<ColumnPinningState>;
 
-  activeEditor?: ActiveEditorState;
-  onActiveEditorChange?: OnChangeFn<ActiveEditorState>;
+  editingCell?: EditingCellState;
+  onEditingCellChange?: OnChangeFn<EditingCellState>;
   onCommitEdit?: (update: {
     rowId: string;
     columnId: string;

@@ -225,7 +225,7 @@ export function useDataGrid<TRow, TFilters>(
   }, [effectiveColumnConfig, columnConfig, onColumnConfigChange]);
 
   const { state: transitions, actions: tx } = useDataGridTransitions();
-  const { rowSelection, activeEditor } = transitions;
+  const { rowSelection, editingCell } = transitions;
 
   const setPage = useCallback(
     (pageIndex: number) => {
@@ -397,15 +397,15 @@ export function useDataGrid<TRow, TFilters>(
       columnPinning: effectiveColumnConfig.columnPinning,
       onColumnPinningChange,
 
-      activeEditor,
-      onActiveEditorChange: tx.setActiveEditor,
+      editingCell,
+      onEditingCellChange: tx.setEditingCell,
     }),
     [
       rowCount,
       view.sorting,
       pagination,
       rowSelection,
-      activeEditor,
+      editingCell,
       effectiveColumnConfig,
       tx,
       onSortingChange,
