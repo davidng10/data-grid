@@ -1,0 +1,6 @@
+/* Establish cascade-layer ordering for the grid.
+   Must be imported before any other DataGridV2 stylesheet. */
+@layer rdg {
+  @layer Defaults, Cell, HeaderCell, Row, HeaderRow, ExpandedRow, DragOverlay,
+    Root;
+}

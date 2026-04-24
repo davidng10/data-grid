@@ -1,0 +1,58 @@
+@layer rdg.Defaults {
+  .root,
+  .root *,
+  .root *::before,
+  .root *::after {
+    box-sizing: inherit;
+  }
+}
+
+@layer rdg.Root {
+  .root {
+    /* Layout tokens (overridable per instance via inline style) */
+    --rdg-row-height: 35px;
+    --rdg-header-row-height: 35px;
+
+    /* Type + chrome */
+    --rdg-font-size: 14px;
+    --rdg-border-width: 1px;
+    --rdg-color: light-dark(#000, #ddd);
+    --rdg-border-color: light-dark(#ddd, #444);
+    --rdg-background-color: light-dark(hsl(0deg 0% 100%), hsl(0deg 0% 13%));
+    --rdg-header-background-color: light-dark(
+      hsl(0deg 0% 97.5%),
+      hsl(0deg 0% 10.5%)
+    );
+    --rdg-header-draggable-background-color: light-dark(
+      hsl(0deg 0% 90.5%),
+      hsl(0deg 0% 17.5%)
+    );
+    --rdg-row-hover-background-color: light-dark(
+      hsl(0deg 0% 96%),
+      hsl(0deg 0% 9%)
+    );
+
+    /* Selection */
+    --rdg-selection-width: 2px;
+    --rdg-selection-color: hsl(207deg 75% 66%);
+    --rdg-row-selected-background-color: light-dark(
+      hsl(207deg 76% 92%),
+      hsl(207deg 76% 42%)
+    );
+    --rdg-row-selected-hover-background-color: light-dark(
+      hsl(207deg 76% 88%),
+      hsl(207deg 76% 38%)
+    );
+    --rdg-checkbox-focus-color: hsl(207deg 100% 69%);
+
+    display: grid;
+    overflow: auto;
+    background-color: var(--rdg-background-color);
+    color: var(--rdg-color);
+    font-size: var(--rdg-font-size);
+    font-variant-numeric: tabular-nums;
+    border: var(--rdg-border-width) solid var(--rdg-border-color);
+    /* Internal stacking context so the grid's layers don't bleed out. */
+    contain: content;
+  }
+}
