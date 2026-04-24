@@ -1,0 +1,17 @@
+@layer rdg.HeaderCell {
+  .headerCell {
+    /* Stick to the top of the scroll container (the .root grid). */
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    grid-row-start: 1;
+    background-color: var(--rdg-header-background-color);
+  }
+
+  /* Frozen header cells need to stack above frozen data cells
+     (z-index 1) and regular header cells (z-index 2). Sticky
+     inline-start offset is wired up in layer 3.                 */
+  .headerCellFrozen {
+    z-index: 3;
+  }
+}

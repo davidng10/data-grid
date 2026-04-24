@@ -1,0 +1,14 @@
+@layer rdg.Row {
+  .row {
+    /* subgrid: the row spans every column of the root grid and inherits
+       the root's grid-template-columns tracks. Cells flow into them. */
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template: subgrid / subgrid;
+    background-color: var(--rdg-background-color);
+  }
+
+  .row:hover {
+    background-color: var(--rdg-row-hover-background-color);
+  }
+}

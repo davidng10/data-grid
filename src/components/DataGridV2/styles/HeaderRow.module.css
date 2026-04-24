@@ -1,0 +1,9 @@
+@layer rdg.HeaderRow {
+  .headerRow {
+    /* display: contents so the header cells become direct children of the
+       root grid. That lets each header cell sticky-position itself
+       independently relative to the scroll container.                    */
+    display: contents;
+    font-weight: bold;
+  }
+}

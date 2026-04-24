@@ -1,0 +1,25 @@
+@layer rdg.Cell {
+  .cell {
+    /* Cells derive their inline-size from the root grid's
+       grid-template-columns track — never set width here.  */
+    position: relative;
+    padding-block: 0;
+    padding-inline: 8px;
+    border-inline-end: var(--rdg-border-width) solid var(--rdg-border-color);
+    border-block-end: var(--rdg-border-width) solid var(--rdg-border-color);
+    align-content: center;
+    background-color: inherit;
+
+    white-space: nowrap;
+    overflow: clip;
+    text-overflow: ellipsis;
+    outline: none;
+  }
+
+  /* Layer 3 will attach sticky positioning via `--rdg-frozen-left-N`;
+     for now the class is reserved so consumers can target it. */
+  .cellFrozen {
+    /* position: sticky + inset-inline-start wired up in layer 3 */
+    z-index: 1;
+  }
+}
