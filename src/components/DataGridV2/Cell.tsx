@@ -26,7 +26,17 @@ function Cell<R>({ column, row, rowIdx }: CellProps<R>) {
         column.frozen && cellStyles.cellFrozen,
         resolvedCellClass,
       )}
-      style={{ gridColumnStart: column.idx + 1 }}
+      style={{
+        gridColumnStart: column.idx + 1,
+        insetInlineStart:
+          column.frozen === "left"
+            ? `var(--rdg-frozen-left-${column.idx})`
+            : undefined,
+        insetInlineEnd:
+          column.frozen === "right"
+            ? `var(--rdg-frozen-right-${column.idx})`
+            : undefined,
+      }}
     >
       {renderCell({ column, row, rowIdx, tabIndex: -1 })}
     </div>

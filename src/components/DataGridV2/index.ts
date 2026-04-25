@@ -21,6 +21,7 @@ export type {
   CellMouseArgs,
   CellMouseEvent,
   Column,
+  ColumnFrozen,
   DataGridHandle,
   DataGridProps,
   ExpandableConfig,

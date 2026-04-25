@@ -35,6 +35,21 @@ export interface Position {
 
 // ---- columns -------------------------------------------------------------
 
+/**
+ * Pin a column to one edge of the grid:
+ * - `'left'` (or `true`) — sticky to the inline-start edge. Sorted to the left
+ *   of unpinned columns, preserving input order among siblings.
+ * - `'right'` — sticky to the inline-end edge. Sorted to the right of unpinned
+ *   columns, preserving input order (first-declared sits closest to data,
+ *   last-declared sits at the outermost edge).
+ * - `false` / `undefined` — flows with the rest of the grid.
+ *
+ * **Pinned columns are never draggable** regardless of `draggable: true`
+ * (reorder via dnd-kit is constrained to the unpinned middle band). They
+ * remain `sortable` and `resizable` per the column's own settings.
+ */
+export type ColumnFrozen = "left" | "right" | boolean;
+
 export interface Column<R> {
   readonly key: string;
   readonly name: string | ReactNode;
@@ -43,7 +58,7 @@ export interface Column<R> {
   /** default {@link DEFAULT_MIN_WIDTH} (50). */
   readonly minWidth?: number;
   readonly maxWidth?: number;
-  readonly frozen?: boolean;
+  readonly frozen?: ColumnFrozen;
   readonly resizable?: boolean;
   readonly draggable?: boolean;
   readonly sortable?: boolean;
@@ -63,8 +78,17 @@ export interface CalculatedColumn<R> extends Column<R> {
   readonly width: number | string;
   readonly minWidth: number;
   readonly maxWidth: number | undefined;
-  readonly frozen: boolean;
+  /**
+   * Normalized: `'left' | 'right' | false`. `Column.frozen === true` collapses
+   * to `'left'`. Truthy check (`column.frozen && …`) still distinguishes
+   * pinned from unpinned columns; switch on the literal when direction matters.
+   */
+  readonly frozen: "left" | "right" | false;
   readonly resizable: boolean;
+  /**
+   * Always `false` for pinned columns regardless of input — pinned columns
+   * never participate in dnd-kit reorder.
+   */
   readonly draggable: boolean;
   readonly sortable: boolean;
   readonly renderCell: (props: RenderCellProps<R>) => ReactNode;

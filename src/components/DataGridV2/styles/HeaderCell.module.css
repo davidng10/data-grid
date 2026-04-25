@@ -8,9 +8,11 @@
     background-color: var(--rdg-header-background-color);
   }
 
-  /* Frozen header cells need to stack above frozen data cells
-     (z-index 1) and regular header cells (z-index 2). Sticky
-     inline-start offset is wired up in layer 3.                 */
+  /* Frozen header cells inherit `position: sticky` from `.headerCell`
+     (which sticks to the top); the inline-start offset is supplied per
+     cell via the `--rdg-frozen-left-N` CSS var on the root. z-index 3
+     stacks them above non-frozen header cells (2) and frozen body
+     cells (1).                                                       */
   .headerCellFrozen {
     z-index: 3;
   }

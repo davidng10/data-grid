@@ -54,14 +54,12 @@ const STATIC_COLUMNS: Column<Row>[] = [
     key: "id",
     name: "ID",
     width: 70,
-    frozen: true,
     cellClass: () => "playground-cell-muted",
   },
   {
     key: "name",
     name: "Name",
     width: 180,
-    frozen: true,
   },
   {
     key: "email",
@@ -112,24 +110,81 @@ const STATIC_COLUMNS: Column<Row>[] = [
   },
 ];
 
+const ACTIONS_COLUMN: Column<Row> = {
+  key: "actions",
+  name: "Actions",
+  width: 120,
+  // Right-pinned: stays glued to the right edge while the rest of the grid
+  // scrolls horizontally. Drag is force-disabled by `useCalculatedColumns`
+  // for any pinned column, so leaving `draggable` unset is fine.
+  frozen: "right",
+  renderCell: ({ row }) => (
+    <div style={{ display: "flex", gap: 6 }}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          // eslint-disable-next-line no-alert
+          alert(`Edit row ${row.id}`);
+        }}
+      >
+        Edit
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          // eslint-disable-next-line no-alert
+          alert(`Delete row ${row.id}`);
+        }}
+      >
+        Delete
+      </button>
+    </div>
+  ),
+};
+
 /**
  * Build `count` columns — the first few are the richly-typed static columns
  * above, the rest are filler synthesized on demand so we can scale to 1000
  * without materializing `N*M` strings up front (would OOM at 1M × 1k).
+ *
+ * `frozenLeftCount` marks the first N data columns as `frozen: 'left'`.
+ * `actionsRight`, when true, appends a right-pinned actions column so the
+ * playground demonstrates both edges at once. Both flags layer on at build
+ * time (not baked into `STATIC_COLUMNS`) so the playground toggles can flip
+ * without rebuilding column identities.
  */
-export function makeColumns(count: number): Column<Row>[] {
-  if (count <= STATIC_COLUMNS.length) {
-    return STATIC_COLUMNS.slice(0, count);
+export function makeColumns(
+  count: number,
+  frozenLeftCount = 0,
+  actionsRight = false,
+): Column<Row>[] {
+  const base =
+    count <= STATIC_COLUMNS.length
+      ? STATIC_COLUMNS.slice(0, count)
+      : [...STATIC_COLUMNS];
+
+  if (count > STATIC_COLUMNS.length) {
+    const fillerCount = count - STATIC_COLUMNS.length;
+    for (let i = 0; i < fillerCount; i++) {
+      base.push({
+        key: `extra-${i}`,
+        name: `Extra ${i}`,
+        width: 120,
+        renderCell: ({ row }) => `R${row.id}·E${i}`,
+      });
+    }
   }
-  const fillerCount = count - STATIC_COLUMNS.length;
-  const filler: Column<Row>[] = new Array(fillerCount);
-  for (let i = 0; i < fillerCount; i++) {
-    filler[i] = {
-      key: `extra-${i}`,
-      name: `Extra ${i}`,
-      width: 120,
-      renderCell: ({ row }) => `R${row.id}·E${i}`,
-    };
-  }
-  return [...STATIC_COLUMNS, ...filler];
+
+  const withFrozen =
+    frozenLeftCount > 0
+      ? base.map((col, idx) =>
+          idx < Math.min(frozenLeftCount, base.length)
+            ? { ...col, frozen: "left" as const }
+            : col,
+        )
+      : base;
+
+  return actionsRight ? [...withFrozen, ACTIONS_COLUMN] : withFrozen;
 }

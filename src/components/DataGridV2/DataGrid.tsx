@@ -16,17 +16,17 @@ import { classnames } from "./utils";
 import dataGridStyles from "./styles/DataGrid.module.css";
 
 /**
- * Layer 2: virtualization.
- *   - Scroll position via useSyncExternalStore (no-op on identical positions).
- *   - Grid size via ResizeObserver (flushSync to avoid scrollbar flashing).
- *   - Row + column overscan computed in closed form (fixed row height; column
- *     metrics in `useCalculatedColumns`).
- *   - Only the viewport slice of rows × columns is rendered. The grid root
- *     reserves all N row tracks via `repeat(N, h)` so scrollbar geometry
- *     stays correct.
+ * Layer 3: column freezing.
+ *   - Frozen columns are sorted leftmost in `useCalculatedColumns`; their
+ *     cumulative left offsets are emitted as `--rdg-frozen-left-N` CSS vars
+ *     on the root, and frozen cells consume them via `inset-inline-start:
+ *     var(--rdg-frozen-left-N)` together with `position: sticky`.
+ *   - Frozen columns are always present in the viewport iteration (see
+ *     `useViewportColumns`), so they re-render only when their own props
+ *     change — horizontal scrolling does not touch them.
+ *   - No frozen-edge shadow in v1 (deferred).
  *
  * Out of scope (by design, landing in later layers):
- *   - Frozen-column sticky offset wiring (layer 3 — sort already in place).
  *   - Active position iteration of out-of-viewport rows/cols (layer 4).
  *   - Row selection, resize, sort, reorder, expansion (layers 5–9).
  */
@@ -47,8 +47,10 @@ export function DataGrid<R>({
 
   const {
     columns,
-    lastFrozenColumnIndex,
+    lastFrozenLeftColumnIndex,
+    firstFrozenRightColumnIndex,
     templateColumns,
+    layoutCssVars,
     colOverscanStartIdx,
     colOverscanEndIdx,
   } = useCalculatedColumns({
@@ -75,7 +77,8 @@ export function DataGrid<R>({
     columns,
     colOverscanStartIdx,
     colOverscanEndIdx,
-    lastFrozenColumnIndex,
+    lastFrozenLeftColumnIndex,
+    firstFrozenRightColumnIndex,
   });
 
   // Header track is always present; body tracks are only emitted when there
@@ -109,6 +112,7 @@ export function DataGrid<R>({
       style={
         {
           ...style,
+          ...layoutCssVars,
           gridTemplateColumns: templateColumns,
           gridTemplateRows,
           "--rdg-row-height": `${rowHeight}px`,

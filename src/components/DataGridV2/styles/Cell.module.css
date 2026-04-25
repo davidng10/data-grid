@@ -16,10 +16,14 @@
     outline: none;
   }
 
-  /* Layer 3 will attach sticky positioning via `--rdg-frozen-left-N`;
-     for now the class is reserved so consumers can target it. */
+  /* Pinned cells stick to one edge of the scroll container (the .root grid).
+     `inset-inline-start: var(--rdg-frozen-left-N)` (left-pinned) or
+     `inset-inline-end: var(--rdg-frozen-right-N)` (right-pinned) is supplied
+     per cell via inline style; the var values come from `useCalculatedColumns`
+     on the root. z-index 1 stacks pinned above unpinned cells (pinned header
+     cells bump to 3 in HeaderCell.module.css). */
   .cellFrozen {
-    /* position: sticky + inset-inline-start wired up in layer 3 */
+    position: sticky;
     z-index: 1;
   }
 }

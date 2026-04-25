@@ -23,7 +23,17 @@ function HeaderCell<R>({ column }: HeaderCellProps<R>) {
         column.frozen && headerCellStyles.headerCellFrozen,
         column.headerCellClass,
       )}
-      style={{ gridColumnStart: column.idx + 1 }}
+      style={{
+        gridColumnStart: column.idx + 1,
+        insetInlineStart:
+          column.frozen === "left"
+            ? `var(--rdg-frozen-left-${column.idx})`
+            : undefined,
+        insetInlineEnd:
+          column.frozen === "right"
+            ? `var(--rdg-frozen-right-${column.idx})`
+            : undefined,
+      }}
     >
       {column.renderHeaderCell({
         column,
