@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { DataGrid } from "../../components/DataGridV2";
-
-import { makeColumns, makeRows } from "./dataset";
+import { makeColumns, makeRows, type Row } from "./dataset";
 
 type DatasetPreset = "dev" | "profiler";
 
@@ -87,7 +86,17 @@ export function PlaygroundPageV2() {
         </label>
       </fieldset>
 
-      <DataGrid />
+      <DataGrid<Row>
+        aria-label="DataGridV2 Playground Grid"
+        columns={columns}
+        rows={rows}
+        rowKeyGetter={rowKeyGetter}
+        style={{ height: 500 }}
+      />
     </div>
   );
+}
+
+function rowKeyGetter(row: Row) {
+  return row.id;
 }
