@@ -4,13 +4,14 @@ import { BrowserRouter, Route, Routes } from "react-router";
 
 import "./index.css";
 
-import { PlaygroundPage } from "./pages/playground/PlaygroundPage";
+import { PlaygroundPageV2 } from "./pages/playground-v2/PlaygroundPage";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <StrictMode>
       <Routes>
-        <Route path="/" element={<PlaygroundPage />} />
+        <Route path="/" element={<PlaygroundPageV2 />} />
+        {/* <Route path="/" element={<PlaygroundPage />} /> */}
       </Routes>
     </StrictMode>
   </BrowserRouter>,

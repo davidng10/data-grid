@@ -1,5 +1,21 @@
 // Populated in later layers:
-// - layer 5 (selection): RowSelectionContext, HeaderRowSelectionContext
-// - layer 9 (expansion): ExpansionContext
-// - layer 10 (polish):   DefaultRenderersContext
-export {};
+// - layer 9 (expansion):  ExpansionContext
+// - layer 10 (polish):    DefaultRenderersContext
+
+export {
+  RowSelectionContext,
+  RowSelectionChangeContext,
+} from "./RowSelectionContext";
+export type {
+  RowSelectionContextValue,
+  SelectRowEvent,
+} from "./RowSelectionContext";
+
+export {
+  HeaderRowSelectionContext,
+  HeaderRowSelectionChangeContext,
+} from "./HeaderRowSelectionContext";
+export type {
+  HeaderRowSelectionContextValue,
+  SelectHeaderRowEvent,
+} from "./HeaderRowSelectionContext";

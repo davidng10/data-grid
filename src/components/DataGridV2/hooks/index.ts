@@ -5,6 +5,7 @@ export type { CalculatedColumnsResult } from "./useCalculatedColumns";
 export { useGridDimensions } from "./useGridDimensions";
 export { useLatestFunc } from "./useLatestFunc";
 export { useRovingTabIndex } from "./useRovingTabIndex";
+export { useHeaderRowSelection, useRowSelection } from "./useRowSelection";
 export { useScrollState } from "./useScrollState";
 export { useViewportColumns } from "./useViewportColumns";
 export type {

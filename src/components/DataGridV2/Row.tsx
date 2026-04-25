@@ -1,6 +1,10 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 import Cell from "./Cell";
+import {
+  RowSelectionContext,
+  type RowSelectionContextValue,
+} from "./contexts";
 import type { IterateOverViewportColumnsForRow } from "./hooks";
 import type { CellMouseArgs, CellMouseEvent, Position } from "./types";
 import { classnames } from "./utils";
@@ -26,6 +30,13 @@ interface RowProps<R> {
    * into single-cell mode.
    */
   readonly isOutsideViewport: boolean;
+  /**
+   * Drives `RowSelectionContext` (and the row-level visual highlight). Toggling
+   * one row's selection changes only that row's prop, so the memo barrier
+   * keeps every other Row stable.
+   */
+  readonly isRowSelected: boolean;
+  readonly isRowSelectionDisabled: boolean;
   readonly setActivePosition: (position: Position) => void;
   readonly onCellClick:
     | ((args: CellMouseArgs<R>, event: CellMouseEvent) => void)
@@ -41,6 +52,8 @@ function Row<R>({
   iterateOverViewportColumnsForRow,
   activeCellIdx,
   isOutsideViewport,
+  isRowSelected,
+  isRowSelectionDisabled,
   setActivePosition,
   onCellClick,
   className,
@@ -65,15 +78,30 @@ function Row<R>({
     );
   }
 
+  // Memoised so the provider's value is shallow-equal across renders that
+  // didn't change selection — a context provider with a fresh-every-time value
+  // would re-render every consumer regardless of whether the data changed.
+  const selectionValue = useMemo<RowSelectionContextValue>(
+    () => ({ isRowSelected, isRowSelectionDisabled }),
+    [isRowSelected, isRowSelectionDisabled],
+  );
+
   return (
-    <div
-      role="row"
-      aria-rowindex={ariaRowIndex}
-      className={classnames(rowStyles.row, className)}
-      style={{ gridRowStart }}
-    >
-      {cells}
-    </div>
+    <RowSelectionContext.Provider value={selectionValue}>
+      <div
+        role="row"
+        aria-rowindex={ariaRowIndex}
+        aria-selected={isRowSelected}
+        className={classnames(
+          rowStyles.row,
+          isRowSelected && rowStyles.rowSelected,
+          className,
+        )}
+        style={{ gridRowStart }}
+      >
+        {cells}
+      </div>
+    </RowSelectionContext.Provider>
   );
 }
 

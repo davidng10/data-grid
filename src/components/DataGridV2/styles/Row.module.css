@@ -11,4 +11,15 @@
   .row:hover {
     background-color: var(--rdg-row-hover-background-color);
   }
+
+  /* Selected row tint. Cells inherit `background-color` (see Cell.module.css)
+     so the highlight extends across pinned + unpinned bands without needing
+     per-cell modifiers. */
+  .rowSelected {
+    background-color: var(--rdg-row-selected-background-color);
+  }
+
+  .rowSelected:hover {
+    background-color: var(--rdg-row-selected-hover-background-color);
+  }
 }

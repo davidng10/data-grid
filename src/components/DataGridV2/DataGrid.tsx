@@ -1,8 +1,17 @@
-import { useRef, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import HeaderRow from "./HeaderRow";
 import Row from "./Row";
+import { SelectColumn } from "./columns";
 import { DEFAULT_ROW_HEIGHT } from "./constants";
+import {
+  HeaderRowSelectionChangeContext,
+  HeaderRowSelectionContext,
+  RowSelectionChangeContext,
+  type HeaderRowSelectionContextValue,
+  type SelectHeaderRowEvent,
+  type SelectRowEvent,
+} from "./contexts";
 import {
   useActivePosition,
   useCalculatedColumns,
@@ -13,7 +22,7 @@ import {
   useViewportRows,
   type ActivePosition,
 } from "./hooks";
-import type { DataGridProps, Position } from "./types";
+import type { Column, DataGridProps, Position } from "./types";
 import {
   canExitGrid,
   classnames,
@@ -25,27 +34,32 @@ import {
 import dataGridStyles from "./styles/DataGrid.module.css";
 
 /**
- * Layer 4: active position + keyboard navigation.
+ * Layer 5: row selection.
  *
- *   - `useActivePosition` owns the `{idx, rowIdx, mode: 'ACTIVE'}` coordinate
- *     plus a separate `positionToFocus` slot that drives the layout-effect
- *     `focusCell` call. Mousedown selects without explicitly focusing (the
- *     browser already does that on click). Keyboard nav explicitly focuses.
- *   - `useViewportColumns` exposes a per-row iterator that injects the active
- *     unpinned column when it sits outside the overscan window. Combined
- *     with the row iterator below, the active cell stays mounted under both
- *     vertical and horizontal scroll, so focus is never lost.
- *   - `handleKeyDown` runs at the grid root. Layer 4 is `ACTIVE`-mode only —
- *     no `'EDIT'` mode, no `CHANGE_ROW` Tab wrapping. `canExitGrid` gates
- *     focus escape; otherwise `event.preventDefault()` keeps the browser
- *     from scrolling and we navigate via `getNextPosition`.
- *   - `onCellKeyDown` is invoked first with `preventGridDefault()`; consumers
- *     that intercept a key short-circuit the grid's own handling.
+ *   - Selection is fully controlled. The grid only fires `onSelectedRowsChange`
+ *     and reads `selectedRows`; consumer owns the state. The internal
+ *     `SELECT_COLUMN` is injected (frozen-left, 40px) when *both* props are
+ *     present — partial wiring is treated as "selection off".
+ *   - Two split-context broadcasts:
+ *     - Per-row: `Row` provides `RowSelectionContext` with its `{isRowSelected,
+ *       isRowSelectionDisabled}`. Toggling one row only re-renders that row's
+ *       provider and its `SelectColumn` cell consumer; every other row stays
+ *       memo-stable. The change handler lives in a separate, stable
+ *       `RowSelectionChangeContext` so non-value consumers don't subscribe to
+ *       value updates.
+ *     - Header: `HeaderRowSelectionContext` carries
+ *       `{isRowSelected, isIndeterminate}` derived from `selectedRows.size` vs
+ *       `rows.length - disabledCount` — never iterates `rows` per render.
+ *   - `Shift+Space` on the active data cell toggles that row's selection
+ *     (intercepted before the nav switch in `handleKeyDown`).
+ *   - `previousRowIdx` (rowIdx, not row object) tracks the last anchor for
+ *     shift-click range selection so range toggles run in O(range) without
+ *     `rows.indexOf()`.
  *
  * Out of scope (later layers):
- *   - Row selection (layer 5): `Shift+Space` toggle + checkbox column.
- *   - Sort hotkey (layer 7): Space/Enter on header to cycle sort.
- *   - Expansion-aware ArrowDown skip past detail panels (layer 9).
+ *   - Column resize (layer 6), sort (layer 7), reorder (layer 8), expansion
+ *     (layer 9). Hooks for those slot in alongside the selection wiring; this
+ *     file already establishes the orchestration shape they need.
  */
 export function DataGrid<R>({
   columns: rawColumns,
@@ -53,6 +67,9 @@ export function DataGrid<R>({
   rowKeyGetter,
   rowHeight = DEFAULT_ROW_HEIGHT,
   headerRowHeight,
+  selectedRows,
+  onSelectedRowsChange,
+  isRowSelectionDisabled,
   onCellClick,
   onCellKeyDown,
   className,
@@ -61,8 +78,19 @@ export function DataGrid<R>({
 }: DataGridProps<R>) {
   const gridRef = useRef<HTMLDivElement>(null);
 
+  const isSelectable = selectedRows != null && onSelectedRowsChange != null;
+
   const { scrollTop, scrollLeft } = useScrollState(gridRef);
   const [gridWidth, gridHeight] = useGridDimensions(gridRef);
+
+  // Inject SELECT_COLUMN ahead of integrator columns when selection is wired.
+  // The cast is safe — SelectColumn never reads row data; it forwards rowIdx
+  // through context only.
+  const rawColumnsWithInternal = useMemo<readonly Column<R>[]>(
+    () =>
+      isSelectable ? [SelectColumn as Column<R>, ...rawColumns] : rawColumns,
+    [rawColumns, isSelectable],
+  );
 
   const {
     columns,
@@ -75,7 +103,7 @@ export function DataGrid<R>({
     totalFrozenLeftColumnWidth,
     totalFrozenRightColumnWidth,
   } = useCalculatedColumns({
-    rawColumns,
+    rawColumns: rawColumnsWithInternal,
     scrollLeft,
     viewportWidth: gridWidth,
   });
@@ -142,6 +170,121 @@ export function DataGrid<R>({
     if (options?.shouldFocus) setPositionToFocus(next);
   }
 
+  // ---- selection ---------------------------------------------------------
+
+  // Anchor row for shift-click range selection. Tracked as an integer rowIdx
+  // (not a row object) so range toggles never need `rows.indexOf()`.
+  const [previousRowIdx, setPreviousRowIdx] = useState(-1);
+
+  // The anchor is meaningful only relative to the current `rows` reference —
+  // a filter / sort / dataset swap leaves the integer pointing at a different
+  // row entity (or a stale-but-in-bounds index that would make a subsequent
+  // shift-click span the wrong range, possibly running an O(rows.length)
+  // walk). Reset during render when we detect a new `rows` ref. Set-state
+  // during render is React-supported (same pattern as `useActivePosition`)
+  // and React dedupes the resulting commit with the rows-change commit.
+  const lastRowsRef = useRef(rows);
+  if (lastRowsRef.current !== rows) {
+    lastRowsRef.current = rows;
+    if (previousRowIdx !== -1) setPreviousRowIdx(-1);
+  }
+
+  // The single O(N) selection cost the plan accepts: counts disabled rows.
+  // Re-runs only when `rows` or the predicate identity change, never on
+  // selection toggles. Consumers should memoise their `isRowSelectionDisabled`
+  // (e.g. with `useCallback`) to keep this stable.
+  const disabledCount = useMemo(() => {
+    if (isRowSelectionDisabled == null) return 0;
+    let n = 0;
+    for (const row of rows) {
+      if (isRowSelectionDisabled(row)) n++;
+    }
+    return n;
+  }, [rows, isRowSelectionDisabled]);
+
+  function selectRow({ rowIdx, checked, isShiftClick }: SelectRowEvent): void {
+    if (selectedRows == null || onSelectedRowsChange == null) return;
+    if (rowIdx < 0 || rowIdx > maxRowIdx) return;
+
+    const row = rows[rowIdx];
+    if (isRowSelectionDisabled?.(row) === true) return;
+
+    const newSelectedRows = new Set(selectedRows);
+    const rowKey = rowKeyGetter(row);
+    if (checked) {
+      newSelectedRows.add(rowKey);
+    } else {
+      newSelectedRows.delete(rowKey);
+    }
+
+    if (
+      isShiftClick &&
+      previousRowIdx !== -1 &&
+      previousRowIdx !== rowIdx &&
+      previousRowIdx <= maxRowIdx
+    ) {
+      // Toggle the *interior* of the range; the just-clicked row was already
+      // toggled above and the previous-anchor row keeps its existing state
+      // (matches the standard "shift extends from anchor in new direction"
+      // behaviour). O(range), not O(N).
+      const [lo, hi] =
+        previousRowIdx < rowIdx
+          ? [previousRowIdx, rowIdx]
+          : [rowIdx, previousRowIdx];
+      for (let i = lo + 1; i < hi; i++) {
+        const r = rows[i];
+        if (isRowSelectionDisabled?.(r) === true) continue;
+        const k = rowKeyGetter(r);
+        if (checked) {
+          newSelectedRows.add(k);
+        } else {
+          newSelectedRows.delete(k);
+        }
+      }
+    }
+
+    setPreviousRowIdx(rowIdx);
+    onSelectedRowsChange(newSelectedRows);
+  }
+
+  function selectHeaderRow({ checked }: SelectHeaderRowEvent): void {
+    if (selectedRows == null || onSelectedRowsChange == null) return;
+    // Clone the current set so keys for rows not in the current `rows` array
+    // (e.g. consumer-filtered) are preserved. We only flip the keys for rows
+    // currently in view.
+    const newSelectedRows = new Set(selectedRows);
+    for (const row of rows) {
+      if (isRowSelectionDisabled?.(row) === true) continue;
+      const rowKey = rowKeyGetter(row);
+      if (checked) {
+        newSelectedRows.add(rowKey);
+      } else {
+        newSelectedRows.delete(rowKey);
+      }
+    }
+    onSelectedRowsChange(newSelectedRows);
+  }
+
+  // Header "select all" / "indeterminate" state, derived from `selectedRows.size`
+  // vs the number of selectable rows. Never iterates `rows` per render —
+  // `disabledCount` is the only iteration cost and it is memoised above.
+  // Note: if the consumer's `selectedRows` contains keys for rows no longer in
+  // `rows`, `size` may exceed `selectableCount`; we accept that and treat
+  // `>= selectableCount` as "all".
+  const headerSelectionValue = useMemo<HeaderRowSelectionContextValue>(() => {
+    if (!isSelectable || selectedRows.size === 0 || rows.length === 0) {
+      return { isRowSelected: false, isIndeterminate: false };
+    }
+    const selectableCount = rows.length - disabledCount;
+    if (selectableCount <= 0) {
+      return { isRowSelected: false, isIndeterminate: false };
+    }
+    return {
+      isRowSelected: selectedRows.size >= selectableCount,
+      isIndeterminate: selectedRows.size < selectableCount,
+    };
+  }, [isSelectable, selectedRows, rows.length, disabledCount]);
+
   // useLatestFunc-wrapped variants so memoized children don't re-render when
   // the consumer's callback identity changes (or when our setPosition closes
   // over different state across renders).
@@ -150,6 +293,8 @@ export function DataGrid<R>({
   );
   const onCellClickLatest = useLatestFunc(onCellClick);
   const onCellKeyDownLatest = useLatestFunc(onCellKeyDown);
+  const selectRowLatest = useLatestFunc(selectRow);
+  const selectHeaderRowLatest = useLatestFunc(selectHeaderRow);
 
   // ---- keyboard nav at the grid root ------------------------------------
 
@@ -170,6 +315,27 @@ export function DataGrid<R>({
         cellEvent,
       );
       if (cellEvent.isGridDefaultPrevented()) return;
+    }
+
+    // Shift+Space toggles selection on the active data row. Header rows and
+    // out-of-bounds positions fall through. Take this *before* the nav switch
+    // so the browser's default Space-scroll never fires when selection is on.
+    if (
+      isSelectable &&
+      event.shiftKey &&
+      event.key === " " &&
+      isActiveInBounds &&
+      activePosition.rowIdx >= 0
+    ) {
+      const row = rows[activePosition.rowIdx];
+      const rowKey = rowKeyGetter(row);
+      selectRow({
+        rowIdx: activePosition.rowIdx,
+        checked: !selectedRows.has(rowKey),
+        isShiftClick: false,
+      });
+      event.preventDefault();
+      return;
     }
 
     // Only navigation keys participate in grid handling.
@@ -226,8 +392,24 @@ export function DataGrid<R>({
   const activeIsDataRow = activeRowIdx >= 0 && activeRowIdx <= maxRowIdx;
   const activeIsHeader = activeRowIdx === -1 && isActiveInBounds;
 
+  function getRowSelectionState(rowIdx: number): {
+    isRowSelected: boolean;
+    isRowSelectionDisabled: boolean;
+  } {
+    if (!isSelectable) {
+      return { isRowSelected: false, isRowSelectionDisabled: false };
+    }
+    const row = rows[rowIdx];
+    return {
+      isRowSelected: selectedRows.has(rowKeyGetter(row)),
+      isRowSelectionDisabled: isRowSelectionDisabled?.(row) === true,
+    };
+  }
+
   function renderDataRow(rowIdx: number, isOutsideViewport: boolean) {
     const row = rows[rowIdx];
+    const { isRowSelected, isRowSelectionDisabled: rowDisabled } =
+      getRowSelectionState(rowIdx);
     return (
       <Row
         key={rowKeyGetter(row)}
@@ -237,6 +419,8 @@ export function DataGrid<R>({
         iterateOverViewportColumnsForRow={iterateOverViewportColumnsForRow}
         activeCellIdx={rowIdx === activeRowIdx ? activePosition.idx : -1}
         isOutsideViewport={isOutsideViewport}
+        isRowSelected={isRowSelected}
+        isRowSelectionDisabled={rowDisabled}
         setActivePosition={setActivePositionLatest}
         onCellClick={onCellClickLatest}
       />
@@ -263,6 +447,18 @@ export function DataGrid<R>({
 
   const gridTemplateRows = `${resolvedHeaderRowHeight}px${bodyTemplateRows}`;
 
+  // The header contexts wrap only the HeaderRow; the row change context wraps
+  // only data rows. Keeping the providers narrow means a header-state change
+  // can't accidentally invalidate row consumers and vice-versa.
+  const headerSection = (
+    <HeaderRow
+      iterateOverViewportColumnsForRow={iterateOverViewportColumnsForRow}
+      activeCellIdx={activeIsHeader ? activePosition.idx : -1}
+      shouldFocusGrid={!isActiveInBounds}
+      setActivePosition={setActivePositionLatest}
+    />
+  );
+
   return (
     <div
       ref={gridRef}
@@ -270,6 +466,7 @@ export function DataGrid<R>({
       aria-label={ariaLabel}
       aria-rowcount={rows.length + 1}
       aria-colcount={columns.length}
+      aria-multiselectable={isSelectable ? true : undefined}
       tabIndex={-1}
       className={classnames(dataGridStyles.root, className)}
       style={
@@ -291,13 +488,23 @@ export function DataGrid<R>({
       }
       onKeyDown={handleKeyDown}
     >
-      <HeaderRow
-        iterateOverViewportColumnsForRow={iterateOverViewportColumnsForRow}
-        activeCellIdx={activeIsHeader ? activePosition.idx : -1}
-        shouldFocusGrid={!isActiveInBounds}
-        setActivePosition={setActivePositionLatest}
-      />
-      {viewportRows}
+      {isSelectable ? (
+        <HeaderRowSelectionChangeContext.Provider value={selectHeaderRowLatest}>
+          <HeaderRowSelectionContext.Provider value={headerSelectionValue}>
+            {headerSection}
+          </HeaderRowSelectionContext.Provider>
+        </HeaderRowSelectionChangeContext.Provider>
+      ) : (
+        headerSection
+      )}
+      {isSelectable ? (
+        <RowSelectionChangeContext.Provider value={selectRowLatest}>
+          {viewportRows}
+        </RowSelectionChangeContext.Provider>
+      ) : (
+        viewportRows
+      )}
     </div>
   );
 }
+

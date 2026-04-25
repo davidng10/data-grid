@@ -1,0 +1,29 @@
+@layer rdg.SelectColumn {
+  /* Native checkbox styled to sit centred in a 40px-wide special column.
+     `align-content: center` on the parent .cell handles vertical centring
+     (block direction); `margin: auto` handles horizontal. */
+  .checkbox {
+    display: block;
+    margin: auto;
+    inline-size: 16px;
+    block-size: 16px;
+    cursor: pointer;
+  }
+
+  .checkbox:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .checkbox:focus-visible {
+    outline: 2px solid var(--rdg-checkbox-focus-color);
+    outline-offset: 1px;
+  }
+
+  /* Override the SelectColumn cell's default inline padding so the 40px
+     track is fully available to the centring math. The user's frozen-band
+     shadow / borders are unaffected. */
+  .cell {
+    padding-inline: 0;
+  }
+}
