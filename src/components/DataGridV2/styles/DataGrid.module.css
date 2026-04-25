@@ -46,6 +46,13 @@
     --rdg-checkbox-focus-color: hsl(207deg 100% 69%);
 
     display: grid;
+    /* Fallback so the grid renders something usable when dropped into an
+       unconstrained parent. Overridden by inline style or by flex/grid
+       parents (e.g. flex column + flex-grow: 1 fills remaining space).
+       `overflow: auto` ensures min-block-size: auto resolves to 0 in flex
+       contexts, so this default doesn't pin the parent to 350px when the
+       parent is smaller. */
+    block-size: 350px;
     overflow: auto;
     background-color: var(--rdg-background-color);
     color: var(--rdg-color);
