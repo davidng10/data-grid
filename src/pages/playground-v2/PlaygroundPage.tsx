@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { DataGrid } from "../../components/DataGridV2";
+import type { Position } from "../../components/DataGridV2";
 import { makeColumns, makeRows } from "./dataset";
 
 import type { Row } from "./dataset";
@@ -15,12 +16,28 @@ const PRESETS: Record<
   profiler: { rows: 1_000_000, cols: 1_000, label: "1M × 1000 (profiler)" },
 };
 
+const FROZEN_COUNT = 3;
+
 export function PlaygroundPageV2() {
   const [preset, setPreset] = useState<DatasetPreset>("dev");
+  const [frozenEnabled, setFrozenEnabled] = useState(true);
+  const [actionsEnabled, setActionsEnabled] = useState(true);
+  // Active position is owned by the grid; we mirror it here for debug
+  // display via `onCellKeyDown` + `onCellClick`. When layer 10 lands,
+  // `onActivePositionChange` will replace this glue.
+  const [debugPosition, setDebugPosition] = useState<Position | null>(null);
   const { rows: rowCount, cols: colCount } = PRESETS[preset];
 
   const rows = useMemo(() => makeRows(rowCount), [rowCount]);
-  const columns = useMemo(() => makeColumns(colCount), [colCount]);
+  const columns = useMemo(
+    () =>
+      makeColumns(
+        colCount,
+        frozenEnabled ? FROZEN_COUNT : 0,
+        actionsEnabled,
+      ),
+    [colCount, frozenEnabled, actionsEnabled],
+  );
 
   return (
     <div
@@ -62,18 +79,55 @@ export function PlaygroundPageV2() {
           {rows.length.toLocaleString()} rows ×{" "}
           {columns.length.toLocaleString()} cols
         </span>
+
+        <span
+          style={{
+            marginInlineStart: "auto",
+            fontVariantNumeric: "tabular-nums",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            fontSize: 12,
+            padding: "4px 8px",
+            background: "#f5f5f5",
+            border: "1px solid #ddd",
+            borderRadius: 4,
+          }}
+          aria-live="polite"
+        >
+          active:{" "}
+          {debugPosition === null
+            ? "—"
+            : `idx=${debugPosition.idx}, rowIdx=${debugPosition.rowIdx}`}
+        </span>
       </header>
 
-      {/* Placeholder controls — wired up per layer. Disabled until the
-          corresponding layer lands so the regression surface is visible. */}
+      <fieldset>
+        <legend>Features</legend>
+        <label>
+          <input
+            type="checkbox"
+            checked={frozenEnabled}
+            onChange={(e) => setFrozenEnabled(e.target.checked)}
+          />{" "}
+          Left-pinned columns ({FROZEN_COUNT}) (layer 3)
+        </label>{" "}
+        <label>
+          <input
+            type="checkbox"
+            checked={actionsEnabled}
+            onChange={(e) => setActionsEnabled(e.target.checked)}
+          />{" "}
+          Right-pinned actions column (layer 3)
+        </label>
+        <div style={{ marginBlockStart: 8, color: "#555", fontSize: 13 }}>
+          <strong>Layer 4 active:</strong> click a cell or Tab into the grid,
+          then use Arrow / Home / End / PageUp / PageDown / Tab. Tab at the
+          last column exits the grid; Shift+Tab at the first column does the
+          same on the inline-start side.
+        </div>
+      </fieldset>
+
       <fieldset style={{ opacity: 0.55 }} disabled>
         <legend>Features (enabled by later layers)</legend>
-        <label>
-          <input type="checkbox" /> Frozen columns (layer 3)
-        </label>{" "}
-        <label>
-          <input type="checkbox" /> Keyboard nav (layer 4)
-        </label>{" "}
         <label>
           <input type="checkbox" /> Row selection (layer 5)
         </label>{" "}
@@ -97,6 +151,12 @@ export function PlaygroundPageV2() {
         rows={rows}
         rowKeyGetter={rowKeyGetter}
         style={{ flexGrow: 1 }}
+        onCellClick={({ column, rowIdx }) =>
+          setDebugPosition({ idx: column.idx, rowIdx })
+        }
+        onCellKeyDown={({ column, rowIdx }) =>
+          setDebugPosition({ idx: column?.idx ?? -1, rowIdx })
+        }
       />
     </div>
   );

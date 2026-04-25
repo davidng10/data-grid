@@ -1,20 +1,46 @@
 import { memo } from "react";
 
 import HeaderCell from "./HeaderCell";
-import type { CalculatedColumn } from "./types";
+import type { IterateOverViewportColumnsForRow } from "./hooks";
+import type { Position } from "./types";
 
 import headerRowStyles from "./styles/HeaderRow.module.css";
 
 interface HeaderRowProps<R> {
-  readonly columns: readonly CalculatedColumn<R>[];
+  readonly iterateOverViewportColumnsForRow: IterateOverViewportColumnsForRow<R>;
+  /** `idx` of the active cell when the active row is the header (rowIdx=-1), else `-1`. */
+  readonly activeCellIdx: number;
+  /** True when the grid has no active position — promotes the first header cell to tab-focusable. */
+  readonly shouldFocusGrid: boolean;
+  readonly setActivePosition: (position: Position) => void;
 }
 
-function HeaderRow<R>({ columns }: HeaderRowProps<R>) {
+function HeaderRow<R>({
+  iterateOverViewportColumnsForRow,
+  activeCellIdx,
+  shouldFocusGrid,
+  setActivePosition,
+}: HeaderRowProps<R>) {
+  const cells: React.ReactNode[] = [];
+  let firstHeaderCell = true;
+  for (const [column, isCellActive] of iterateOverViewportColumnsForRow(
+    activeCellIdx,
+  )) {
+    cells.push(
+      <HeaderCell
+        key={column.key}
+        column={column}
+        isCellActive={isCellActive}
+        shouldFocusGrid={shouldFocusGrid && firstHeaderCell}
+        setActivePosition={setActivePosition}
+      />,
+    );
+    firstHeaderCell = false;
+  }
+
   return (
     <div role="row" aria-rowindex={1} className={headerRowStyles.headerRow}>
-      {columns.map((column) => (
-        <HeaderCell key={column.key} column={column} />
-      ))}
+      {cells}
     </div>
   );
 }
