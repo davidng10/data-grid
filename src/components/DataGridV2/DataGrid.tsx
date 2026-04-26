@@ -15,6 +15,7 @@ import {
 import {
   useActivePosition,
   useCalculatedColumns,
+  useColumnWidths,
   useGridDimensions,
   useLatestFunc,
   useScrollState,
@@ -70,6 +71,7 @@ export function DataGrid<R>({
   selectedRows,
   onSelectedRowsChange,
   isRowSelectionDisabled,
+  onColumnResize,
   onCellClick,
   onCellKeyDown,
   className,
@@ -92,6 +94,14 @@ export function DataGrid<R>({
     [rawColumns, isSelectable],
   );
 
+  // Layer 6. The resize map is keyed by `column.key` and survives column
+  // reorder / dataset toggles for free — keys outlive their CalculatedColumn
+  // identity. `handleColumnResize` is stable; the map identity changes only
+  // on commit, gating downstream metrics rebuilds.
+  const { resizedWidths, handleColumnResize } = useColumnWidths({
+    onColumnResize,
+  });
+
   const {
     columns,
     lastFrozenLeftColumnIndex,
@@ -106,6 +116,7 @@ export function DataGrid<R>({
     rawColumns: rawColumnsWithInternal,
     scrollLeft,
     viewportWidth: gridWidth,
+    resizedWidths,
   });
 
   const resolvedHeaderRowHeight = headerRowHeight ?? rowHeight;
@@ -456,6 +467,7 @@ export function DataGrid<R>({
       activeCellIdx={activeIsHeader ? activePosition.idx : -1}
       shouldFocusGrid={!isActiveInBounds}
       setActivePosition={setActivePositionLatest}
+      onColumnResize={handleColumnResize}
     />
   );
 

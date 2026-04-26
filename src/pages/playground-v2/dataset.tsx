@@ -54,22 +54,27 @@ const STATIC_COLUMNS: Column<Row>[] = [
     key: "id",
     name: "ID",
     width: 70,
+    minWidth: 50,
     cellClass: () => "playground-cell-muted",
   },
   {
     key: "name",
     name: "Name",
     width: 180,
+    minWidth: 80,
+    maxWidth: 400,
   },
   {
     key: "email",
     name: "Email",
     width: 260,
+    minWidth: 120,
   },
   {
     key: "status",
     name: "Status",
     width: 110,
+    minWidth: 80,
     renderCell: ({ row }) => (
       <span
         style={{
@@ -99,6 +104,7 @@ const STATIC_COLUMNS: Column<Row>[] = [
     key: "amount",
     name: "Amount",
     width: 120,
+    minWidth: 80,
     cellClass: () => "playground-cell-numeric",
     renderCell: ({ row }) => CURRENCY.format(row.amount),
   },
@@ -106,6 +112,7 @@ const STATIC_COLUMNS: Column<Row>[] = [
     key: "createdAt",
     name: "Created",
     width: 200,
+    minWidth: 120,
     renderCell: ({ row }) => DATE_FMT.format(row.createdAt),
   },
 ];
@@ -151,14 +158,20 @@ const ACTIONS_COLUMN: Column<Row> = {
  *
  * `frozenLeftCount` marks the first N data columns as `frozen: 'left'`.
  * `actionsRight`, when true, appends a right-pinned actions column so the
- * playground demonstrates both edges at once. Both flags layer on at build
- * time (not baked into `STATIC_COLUMNS`) so the playground toggles can flip
- * without rebuilding column identities.
+ * playground demonstrates both edges at once. `resizable`, when true, marks
+ * every non-pinned column as resizable so the layer-6 handle is available
+ * across both static and filler columns.
+ *
+ * All flags layer on at build time (not baked into `STATIC_COLUMNS`) so the
+ * playground toggles can flip without rebuilding column identities — the
+ * `column.key` strings stay stable, which is what lets resized widths
+ * persist across dataset toggles (`useColumnWidths` keys by `column.key`).
  */
 export function makeColumns(
   count: number,
   frozenLeftCount = 0,
   actionsRight = false,
+  resizable = false,
 ): Column<Row>[] {
   const base =
     count <= STATIC_COLUMNS.length
@@ -172,6 +185,7 @@ export function makeColumns(
         key: `extra-${i}`,
         name: `Extra ${i}`,
         width: 120,
+        minWidth: 60,
         renderCell: ({ row }) => `R${row.id}·E${i}`,
       });
     }
@@ -186,5 +200,14 @@ export function makeColumns(
         )
       : base;
 
-  return actionsRight ? [...withFrozen, ACTIONS_COLUMN] : withFrozen;
+  // Pinned columns can be resizable; the resize handle is independent of
+  // dnd reorder (which is disabled for pinned columns). The `id` column
+  // stays fixed so we have a stable left-edge anchor.
+  const withResizable = resizable
+    ? withFrozen.map((col) =>
+        col.key === "id" ? col : { ...col, resizable: true },
+      )
+    : withFrozen;
+
+  return actionsRight ? [...withResizable, ACTIONS_COLUMN] : withResizable;
 }

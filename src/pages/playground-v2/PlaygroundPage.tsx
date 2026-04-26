@@ -24,6 +24,7 @@ export function PlaygroundPageV2() {
   const [actionsEnabled, setActionsEnabled] = useState(true);
   const [selectionEnabled, setSelectionEnabled] = useState(true);
   const [disabledEvensEnabled, setDisabledEvensEnabled] = useState(false);
+  const [resizableEnabled, setResizableEnabled] = useState(true);
   // Active position is owned by the grid; we mirror it here for debug
   // display via `onCellKeyDown` + `onCellClick`. When layer 10 lands,
   // `onActivePositionChange` will replace this glue.
@@ -40,8 +41,9 @@ export function PlaygroundPageV2() {
         colCount,
         frozenEnabled ? FROZEN_COUNT : 0,
         actionsEnabled,
+        resizableEnabled,
       ),
-    [colCount, frozenEnabled, actionsEnabled],
+    [colCount, frozenEnabled, actionsEnabled, resizableEnabled],
   );
 
   // Memoised so the disabledCount in DataGrid only recomputes when the toggle
@@ -173,6 +175,14 @@ export function PlaygroundPageV2() {
             onChange={(e) => setDisabledEvensEnabled(e.target.checked)}
           />{" "}
           Disable selection for even-id rows (layer 5)
+        </label>{" "}
+        <label>
+          <input
+            type="checkbox"
+            checked={resizableEnabled}
+            onChange={(e) => setResizableEnabled(e.target.checked)}
+          />{" "}
+          Column resize (layer 6)
         </label>
         <div style={{ marginBlockStart: 8, color: "#555", fontSize: 13 }}>
           <strong>Layer 4:</strong> click a cell or Tab into the grid, then
@@ -182,14 +192,17 @@ export function PlaygroundPageV2() {
           <strong>Layer 5:</strong> click a row's checkbox to toggle. Shift +
           click another row's checkbox to range-select. With selection on,
           Shift + Space on an active data cell toggles its row.
+          <br />
+          <strong>Layer 6:</strong> hover a header's right edge for a
+          col-resize cursor and drag. Resized widths persist across the
+          dataset toggle (keyed by <code>column.key</code>). The{" "}
+          <em>ID</em> column stays fixed; <em>Name</em> is clamped to{" "}
+          <code>[80, 400]</code>.
         </div>
       </fieldset>
 
       <fieldset style={{ opacity: 0.55 }} disabled>
         <legend>Features (enabled by later layers)</legend>
-        <label>
-          <input type="checkbox" /> Column resize (layer 6)
-        </label>{" "}
         <label>
           <input type="checkbox" /> Sort (layer 7)
         </label>{" "}

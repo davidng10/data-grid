@@ -2,6 +2,8 @@ export { useActivePosition } from "./useActivePosition";
 export type { ActivePosition, UseActivePositionResult } from "./useActivePosition";
 export { useCalculatedColumns } from "./useCalculatedColumns";
 export type { CalculatedColumnsResult } from "./useCalculatedColumns";
+export { useColumnWidths } from "./useColumnWidths";
+export type { UseColumnWidthsResult } from "./useColumnWidths";
 export { useGridDimensions } from "./useGridDimensions";
 export { useLatestFunc } from "./useLatestFunc";
 export { useRovingTabIndex } from "./useRovingTabIndex";

@@ -13,6 +13,8 @@ interface HeaderRowProps<R> {
   /** True when the grid has no active position — promotes the first header cell to tab-focusable. */
   readonly shouldFocusGrid: boolean;
   readonly setActivePosition: (position: Position) => void;
+  /** Layer 6. Stable identity; forwarded to each resizable HeaderCell. */
+  readonly onColumnResize: (columnKey: string, width: number) => void;
 }
 
 function HeaderRow<R>({
@@ -20,6 +22,7 @@ function HeaderRow<R>({
   activeCellIdx,
   shouldFocusGrid,
   setActivePosition,
+  onColumnResize,
 }: HeaderRowProps<R>) {
   const cells: React.ReactNode[] = [];
   let firstHeaderCell = true;
@@ -33,6 +36,7 @@ function HeaderRow<R>({
         isCellActive={isCellActive}
         shouldFocusGrid={shouldFocusGrid && firstHeaderCell}
         setActivePosition={setActivePosition}
+        onColumnResize={onColumnResize}
       />,
     );
     firstHeaderCell = false;

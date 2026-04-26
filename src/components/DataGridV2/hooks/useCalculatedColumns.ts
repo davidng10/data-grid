@@ -8,6 +8,7 @@ import type {
   RenderCellProps,
   RenderHeaderCellProps,
 } from "../types";
+import { clampColumnWidth } from "../utils";
 
 const { max, min } = Math;
 
@@ -20,6 +21,14 @@ interface UseCalculatedColumnsArgs<R> {
   readonly rawColumns: readonly Column<R>[];
   readonly scrollLeft: number;
   readonly viewportWidth: number;
+  /**
+   * Layer 6 resize overrides. Keyed by `column.key`; when present, replaces
+   * `column.width` for the metrics/template pass. Constructing `columns`
+   * itself stays independent of this map — so a resize tick produces new
+   * `templateColumns` / `columnMetrics` / `layoutCssVars` without rebuilding
+   * the `CalculatedColumn` array, keeping per-cell memo identities stable.
+   */
+  readonly resizedWidths: ReadonlyMap<string, number>;
 }
 
 export interface CalculatedColumnsResult<R> {
@@ -52,6 +61,7 @@ export function useCalculatedColumns<R>({
   rawColumns,
   scrollLeft,
   viewportWidth,
+  resizedWidths,
 }: UseCalculatedColumnsArgs<R>): CalculatedColumnsResult<R> {
   const { columns, lastFrozenLeftColumnIndex, firstFrozenRightColumnIndex } =
     useMemo(() => {
@@ -118,13 +128,17 @@ export function useCalculatedColumns<R>({
     let left = 0;
 
     for (const column of columns) {
-      // Non-numeric widths ("auto", "1fr") fall back to `minWidth` for both
-      // the metric *and* the template track. Layer 6 will replace this with
-      // a measuring-cell pass that resolves the natural width on commit.
+      // Resolution order: user-resized width (layer 6) → configured numeric
+      // width → fallback to `minWidth` for non-numeric configs ("auto",
+      // "1fr"). A measuring-cell pass for "auto" widths is intentionally not
+      // implemented in v1 (plan §5.6 marks it skippable).
+      const resized = resizedWidths.get(column.key);
       const width =
-        typeof column.width === "number"
-          ? clampColumnWidth(column.width, column)
-          : column.minWidth;
+        resized !== undefined
+          ? clampColumnWidth(resized, column)
+          : typeof column.width === "number"
+            ? clampColumnWidth(column.width, column)
+            : column.minWidth;
       tracks.push(`${width}px`);
       metrics.set(column, { width, left });
       left += width;
@@ -165,7 +179,12 @@ export function useCalculatedColumns<R>({
       totalFrozenRightColumnWidth,
       layoutCssVars,
     };
-  }, [columns, lastFrozenLeftColumnIndex, firstFrozenRightColumnIndex]);
+  }, [
+    columns,
+    lastFrozenLeftColumnIndex,
+    firstFrozenRightColumnIndex,
+    resizedWidths,
+  ]);
 
   const [colOverscanStartIdx, colOverscanEndIdx] = useMemo<[number, number]>(
     () => {
@@ -252,17 +271,6 @@ function normalizeFrozen(
   if (frozen === "right") return "right";
   if (frozen === "left" || frozen === true) return "left";
   return false;
-}
-
-function clampColumnWidth<R>(
-  width: number,
-  { minWidth, maxWidth }: CalculatedColumn<R>,
-): number {
-  const clamped = max(width, minWidth);
-  if (typeof maxWidth === "number" && maxWidth >= minWidth) {
-    return min(clamped, maxWidth);
-  }
-  return clamped;
 }
 
 function defaultRenderCell<R>({ column, row }: RenderCellProps<R>) {

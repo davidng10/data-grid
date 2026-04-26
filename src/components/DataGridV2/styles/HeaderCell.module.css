@@ -16,4 +16,28 @@
   .headerCellFrozen {
     z-index: 3;
   }
+
+  /* Layer 6. `touch-action: none` keeps the browser from hijacking the
+     pointer for native pan/zoom while the resize drag is active —
+     without it, vertical drags on touch devices steal the pointer
+     stream and the resize handle never sees `pointermove`. */
+  .headerCellResizable {
+    touch-action: none;
+  }
+
+  /* 10px-wide col-resize strip pinned to the cell's inline-end edge.
+     Sits above the header cell's clip boundary because the parent
+     `.cell` is `position: relative` and this child is absolutely
+     positioned within it (so `overflow: clip` doesn't trim it as long
+     as it stays within the cell rect, which it does). */
+  .resizeHandle {
+    cursor: col-resize;
+    position: absolute;
+    inset-block-start: 0;
+    inset-block-end: 0;
+    inset-inline-end: 0;
+    inline-size: 10px;
+    /* Above the header text but below sticky pinned headers' z-index. */
+    z-index: 1;
+  }
 }
