@@ -15,6 +15,7 @@ import "./DataGrid.css";
 export const DataGrid = <TData,>({
   data,
   columns,
+  defaultColumnPinning,
   rowHeight = DEFAULT_ROW_HEIGHT,
   headerHeight = DEFAULT_HEADER_HEIGHT,
   overscan = DEFAULT_OVERSCAN,
@@ -27,6 +28,8 @@ export const DataGrid = <TData,>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    enableColumnPinning: true,
+    initialState: { columnPinning: defaultColumnPinning },
   });
 
   const { rowVirtualizer, columnVirtualizer } = useGridVirtualizers({
@@ -37,7 +40,10 @@ export const DataGrid = <TData,>({
     overscan,
   });
 
-  const totalWidth = columnVirtualizer.getTotalSize();
+  const leftTotalWidth = table.getLeftTotalSize();
+  const rightTotalWidth = table.getRightTotalSize();
+  const totalWidth =
+    leftTotalWidth + columnVirtualizer.getTotalSize() + rightTotalWidth;
 
   return (
     <div
@@ -50,12 +56,14 @@ export const DataGrid = <TData,>({
         columnVirtualizer={columnVirtualizer}
         height={headerHeight}
         totalWidth={totalWidth}
+        leftTotalWidth={leftTotalWidth}
       />
       <Body
         table={table}
         rowVirtualizer={rowVirtualizer}
         columnVirtualizer={columnVirtualizer}
         totalWidth={totalWidth}
+        leftTotalWidth={leftTotalWidth}
       />
     </div>
   );

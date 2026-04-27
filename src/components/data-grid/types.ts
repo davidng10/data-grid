@@ -1,7 +1,7 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, ColumnPinningState } from "@tanstack/react-table";
 import type { CSSProperties } from "react";
 
-export type { ColumnDef };
+export type { ColumnDef, ColumnPinningState };
 
 /**
  * Props for the DataGrid component.
@@ -14,6 +14,11 @@ export type { ColumnDef };
 export type DataGridProps<TData> = {
   data: TData[];
   columns: ColumnDef<TData>[];
+  /**
+   * Initial column pinning. Uncontrolled — TanStack Table owns the state
+   * after mount. Use column ids (defaults to `accessorKey`).
+   */
+  defaultColumnPinning?: ColumnPinningState;
   rowHeight?: number;
   headerHeight?: number;
   overscan?: number;

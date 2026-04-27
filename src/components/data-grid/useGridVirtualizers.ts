@@ -17,7 +17,9 @@ export const useGridVirtualizers = <TData,>({
   rowHeight,
   overscan,
 }: Args<TData>) => {
-  const visibleColumns = table.getVisibleLeafColumns();
+  // Only the center zone is column-virtualized; left/right pinned columns are
+  // always rendered as sticky cells in Header/Body.
+  const visibleColumns = table.getCenterVisibleLeafColumns();
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,

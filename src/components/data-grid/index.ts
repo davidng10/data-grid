@@ -1,5 +1,5 @@
 export { DataGrid } from "./DataGrid";
-export type { ColumnDef, DataGridProps } from "./types";
+export type { ColumnDef, ColumnPinningState, DataGridProps } from "./types";
 export {
   DEFAULT_HEADER_HEIGHT,
   DEFAULT_OVERSCAN,

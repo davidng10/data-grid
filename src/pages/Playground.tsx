@@ -1,6 +1,15 @@
 import { useMemo, useState } from "react";
 
-import { DataGrid, type ColumnDef } from "../components/data-grid";
+import {
+  DataGrid,
+  type ColumnDef,
+  type ColumnPinningState,
+} from "../components/data-grid";
+
+const DEFAULT_COLUMN_PINNING: ColumnPinningState = {
+  left: ["id", "firstName"],
+  right: ["joinedAt"],
+};
 
 type Row = Record<string, string | number>;
 
@@ -73,7 +82,7 @@ const buildData = (rows: number, cols: number): Row[] => {
 };
 
 const PRESETS = [
-  { label: "10 × 5", rows: 10, cols: 5 },
+  { label: "10 × 5", rows: 100, cols: 5 },
   { label: "1k × 20", rows: 1_000, cols: 20 },
   { label: "10k × 50", rows: 10_000, cols: 50 },
   { label: "100k × 100", rows: 100_000, cols: 100 },
@@ -160,12 +169,17 @@ export const Playground = () => {
           <DataGrid
             data={data}
             columns={columns}
+            defaultColumnPinning={DEFAULT_COLUMN_PINNING}
             style={{ width: 600, height: 400 }}
           />
         </div>
       ) : (
         <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
-          <DataGrid data={data} columns={columns} />
+          <DataGrid
+            data={data}
+            columns={columns}
+            defaultColumnPinning={DEFAULT_COLUMN_PINNING}
+          />
         </div>
       )}
     </div>
