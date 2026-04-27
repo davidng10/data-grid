@@ -1,32 +1,84 @@
-import { flexRender, type Table } from "@tanstack/react-table";
-import type { Virtualizer } from "@tanstack/react-virtual";
+import {
+  flexRender,
+  type Cell as TableCell,
+  type ColumnPinningState,
+  type Row,
+} from "@tanstack/react-table";
+import type { VirtualItem } from "@tanstack/react-virtual";
+import { memo, type CSSProperties } from "react";
 
 type Props<TData> = {
-  table: Table<TData>;
-  rowVirtualizer: Virtualizer<HTMLDivElement, Element>;
-  columnVirtualizer: Virtualizer<HTMLDivElement, Element>;
-  totalWidth: number;
-  leftTotalWidth: number;
+  rows: Row<TData>[];
+  virtualRows: VirtualItem[];
+  virtualColumns: VirtualItem[];
+  bodyHeight: number;
+  // Not read inside Body — included so the memo invalidates when pinning
+  // changes. row.getLeftVisibleCells / getCenterVisibleCells /
+  // getRightVisibleCells return different cell sets per zone after a pin,
+  // even though `rows` itself is reference-equal. Without this prop Body
+  // would skip and the body would render stale cell distribution.
+  columnPinning: ColumnPinningState | undefined;
 };
 
-export const Body = <TData,>({
-  table,
-  rowVirtualizer,
-  columnVirtualizer,
-  totalWidth,
-  leftTotalWidth,
-}: Props<TData>) => {
-  const rows = table.getRowModel().rows;
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const virtualColumns = columnVirtualizer.getVirtualItems();
+type CellProps<TData> = {
+  cell: TableCell<TData, unknown>;
+  height: number;
+  className: string;
+};
 
+// Width and position are read from CSS custom properties set on the scroll
+// container by DataGrid. Cells take only invariant props (cell ref, row
+// height, className) so the memo skip below catches every column-size
+// commit — the browser repaints widths via CSS without any cell render.
+const CellInner = <TData,>({ cell, height, className }: CellProps<TData>) => {
+  const id = cell.column.id;
+  const pinned = cell.column.getIsPinned();
+
+  let style: CSSProperties;
+  if (pinned === "left") {
+    style = {
+      height,
+      width: `var(--dg-col-${id}-size)`,
+      left: `var(--dg-col-${id}-pinned-left)`,
+    };
+  } else if (pinned === "right") {
+    style = {
+      height,
+      width: `var(--dg-col-${id}-size)`,
+      right: `var(--dg-col-${id}-pinned-right)`,
+    };
+  } else {
+    style = {
+      height,
+      width: `var(--dg-col-${id}-size)`,
+      transform: `translateX(calc(var(--dg-left-total) + var(--dg-col-${id}-start)))`,
+    };
+  }
+
+  return (
+    <div className={className} style={style}>
+      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+    </div>
+  );
+};
+
+const Cell = memo(CellInner) as typeof CellInner;
+
+// Body is memoized. Its props are stable across resize commits (no totalWidth
+// here — it lives in a CSS var), so during a drag with measure() suppressed,
+// virtualRows/virtualColumns/rows references stay equal and Body skips its
+// 600+ cell iteration entirely. Scroll still re-renders Body because
+// getVirtualItems returns a new array when scroll position changes.
+const BodyInner = <TData,>({
+  rows,
+  virtualRows,
+  virtualColumns,
+  bodyHeight,
+}: Props<TData>) => {
   return (
     <div
       className="dg-body"
-      style={{
-        height: rowVirtualizer.getTotalSize(),
-        width: totalWidth,
-      }}
+      style={{ height: bodyHeight, width: "var(--dg-total-width)" }}
     >
       {virtualRows.map((vr) => {
         const row = rows[vr.index];
@@ -44,60 +96,45 @@ export const Body = <TData,>({
             className="dg-row"
             style={{
               height: vr.size,
-              width: totalWidth,
+              width: "var(--dg-total-width)",
               transform: `translateY(${vr.start}px)`,
             }}
           >
             {leftCells.map((cell, idx) => (
-              <div
+              <Cell
                 key={cell.id}
+                cell={cell}
+                height={vr.size}
                 className={
                   idx === lastLeft
                     ? "dg-cell dg-pinned-left dg-pinned-left-last"
                     : "dg-cell dg-pinned-left"
                 }
-                style={{
-                  height: vr.size,
-                  width: cell.column.getSize(),
-                  left: cell.column.getStart("left"),
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </div>
+              />
             ))}
             {virtualColumns.map((vc) => {
               const cell = centerCells[vc.index];
               if (!cell) return null;
               return (
-                <div
+                <Cell
                   key={cell.id}
+                  cell={cell}
+                  height={vr.size}
                   className="dg-cell"
-                  style={{
-                    height: vr.size,
-                    width: vc.size,
-                    transform: `translateX(${leftTotalWidth + vc.start}px)`,
-                  }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </div>
+                />
               );
             })}
             {rightCells.map((cell, idx) => (
-              <div
+              <Cell
                 key={cell.id}
+                cell={cell}
+                height={vr.size}
                 className={
                   idx === 0
                     ? "dg-cell dg-pinned-right dg-pinned-right-first"
                     : "dg-cell dg-pinned-right"
                 }
-                style={{
-                  height: vr.size,
-                  width: cell.column.getSize(),
-                  right: cell.column.getAfter("right"),
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </div>
+              />
             ))}
           </div>
         );
@@ -105,3 +142,5 @@ export const Body = <TData,>({
     </div>
   );
 };
+
+export const Body = memo(BodyInner) as typeof BodyInner;

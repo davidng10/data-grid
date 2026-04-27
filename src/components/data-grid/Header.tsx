@@ -1,34 +1,35 @@
-import type { Table } from "@tanstack/react-table";
-import type { Virtualizer } from "@tanstack/react-virtual";
+import type { HeaderGroup } from "@tanstack/react-table";
+import type { VirtualItem } from "@tanstack/react-virtual";
+import { memo } from "react";
 
 import { HeaderCell } from "./HeaderCell";
 
 type Props<TData> = {
-  table: Table<TData>;
-  columnVirtualizer: Virtualizer<HTMLDivElement, Element>;
+  leftHeaderGroups: HeaderGroup<TData>[];
+  centerHeaderGroups: HeaderGroup<TData>[];
+  rightHeaderGroups: HeaderGroup<TData>[];
+  virtualColumns: VirtualItem[];
   height: number;
-  totalWidth: number;
-  leftTotalWidth: number;
+  resizeEnabled: boolean;
 };
 
-export const Header = <TData,>({
-  table,
-  columnVirtualizer,
+// Memoized for the same reason as Body: width sits in a CSS var on the scroll
+// container, so column-sizing commits don't change Header's props and the
+// header cell iteration is skipped during drag.
+const HeaderInner = <TData,>({
+  leftHeaderGroups,
+  centerHeaderGroups,
+  rightHeaderGroups,
+  virtualColumns,
   height,
-  totalWidth,
-  leftTotalWidth,
+  resizeEnabled,
 }: Props<TData>) => {
-  const leftHeaderGroups = table.getLeftHeaderGroups();
-  const centerHeaderGroups = table.getCenterHeaderGroups();
-  const rightHeaderGroups = table.getRightHeaderGroups();
-  const virtualColumns = columnVirtualizer.getVirtualItems();
-
   const groupCount = centerHeaderGroups.length;
 
   return (
     <div
       className="dg-header"
-      style={{ height: height * groupCount, width: totalWidth }}
+      style={{ height: height * groupCount, width: "var(--dg-total-width)" }}
     >
       {centerHeaderGroups.map((centerGroup, gi) => {
         const leftHeaders = leftHeaderGroups[gi]?.headers ?? [];
@@ -40,7 +41,7 @@ export const Header = <TData,>({
           <div
             key={centerGroup.id}
             className="dg-header-row"
-            style={{ height, width: totalWidth }}
+            style={{ height, width: "var(--dg-total-width)" }}
           >
             {leftHeaders.map((header, idx) => (
               <HeaderCell
@@ -52,7 +53,7 @@ export const Header = <TData,>({
                     ? "dg-header-cell dg-pinned-left dg-pinned-left-last"
                     : "dg-header-cell dg-pinned-left"
                 }
-                style={{ left: header.column.getStart("left") }}
+                resizeEnabled={resizeEnabled}
               />
             ))}
             {virtualColumns.map((vc) => {
@@ -64,9 +65,7 @@ export const Header = <TData,>({
                   header={header}
                   height={height}
                   className="dg-header-cell"
-                  style={{
-                    transform: `translateX(${leftTotalWidth + vc.start}px)`,
-                  }}
+                  resizeEnabled={resizeEnabled}
                 />
               );
             })}
@@ -80,7 +79,7 @@ export const Header = <TData,>({
                     ? "dg-header-cell dg-pinned-right dg-pinned-right-first"
                     : "dg-header-cell dg-pinned-right"
                 }
-                style={{ right: header.column.getAfter("right") }}
+                resizeEnabled={resizeEnabled}
               />
             ))}
           </div>
@@ -89,3 +88,5 @@ export const Header = <TData,>({
     </div>
   );
 };
+
+export const Header = memo(HeaderInner) as typeof HeaderInner;

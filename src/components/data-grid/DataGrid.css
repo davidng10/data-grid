@@ -118,3 +118,24 @@
 .dg-pinned-right-first {
   border-left: 1px solid #e5e4e7;
 }
+
+/* Resize handle: 6px hit target on the right edge of every resizable header
+ * cell. Sits inside the cell (right: 0) rather than overhanging because the
+ * scroll container's `contain: strict` clips paint at its right edge — an
+ * overhanging handle on the rightmost column would lose 3px of hit area. */
+.dg-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 4;
+  user-select: none;
+  touch-action: none;
+}
+
+.dg-resize-handle:hover,
+.dg-resize-handle:active {
+  background: rgba(22, 119, 255, 0.4);
+}

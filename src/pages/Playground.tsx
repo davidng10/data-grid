@@ -4,6 +4,7 @@ import {
   DataGrid,
   type ColumnDef,
   type ColumnPinningState,
+  type ColumnSizingState,
 } from "../components/data-grid";
 
 const INITIAL_COLUMN_PINNING: ColumnPinningState = {
@@ -105,6 +106,7 @@ export const Playground = () => {
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>(
     INITIAL_COLUMN_PINNING,
   );
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const preset = PRESETS[presetIdx];
 
   const columns = useMemo(() => buildColumns(preset.cols), [preset.cols]);
@@ -174,6 +176,8 @@ export const Playground = () => {
             columns={columns}
             columnPinning={columnPinning}
             onColumnPinningChange={setColumnPinning}
+            columnSizing={columnSizing}
+            onColumnSizingChange={setColumnSizing}
             style={{ width: 600, height: 400 }}
           />
         </div>
@@ -184,6 +188,8 @@ export const Playground = () => {
             columns={columns}
             columnPinning={columnPinning}
             onColumnPinningChange={setColumnPinning}
+            columnSizing={columnSizing}
+            onColumnSizingChange={setColumnSizing}
           />
         </div>
       )}
