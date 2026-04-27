@@ -6,7 +6,7 @@ import {
   type ColumnPinningState,
 } from "../components/data-grid";
 
-const DEFAULT_COLUMN_PINNING: ColumnPinningState = {
+const INITIAL_COLUMN_PINNING: ColumnPinningState = {
   left: ["id", "firstName"],
   right: ["joinedAt"],
 };
@@ -102,6 +102,9 @@ const buttonStyle = (active: boolean): React.CSSProperties => ({
 export const Playground = () => {
   const [presetIdx, setPresetIdx] = useState(2);
   const [fixed, setFixed] = useState(false);
+  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>(
+    INITIAL_COLUMN_PINNING,
+  );
   const preset = PRESETS[presetIdx];
 
   const columns = useMemo(() => buildColumns(preset.cols), [preset.cols]);
@@ -169,7 +172,8 @@ export const Playground = () => {
           <DataGrid
             data={data}
             columns={columns}
-            defaultColumnPinning={DEFAULT_COLUMN_PINNING}
+            columnPinning={columnPinning}
+            onColumnPinningChange={setColumnPinning}
             style={{ width: 600, height: 400 }}
           />
         </div>
@@ -178,7 +182,8 @@ export const Playground = () => {
           <DataGrid
             data={data}
             columns={columns}
-            defaultColumnPinning={DEFAULT_COLUMN_PINNING}
+            columnPinning={columnPinning}
+            onColumnPinningChange={setColumnPinning}
           />
         </div>
       )}

@@ -30,17 +30,35 @@
   left: 0;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  gap: 4px;
+  padding: 0 8px 0 12px;
   font-weight: 600;
   color: #08060d;
   background: #fff;
   border-right: 1px solid #e5e4e7;
   box-sizing: border-box;
   user-select: none;
+  flex-shrink: 0;
+}
+
+.dg-header-cell-content {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.dg-header-cell-trigger {
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 80ms linear;
+}
+
+.dg-header-cell:hover .dg-header-cell-trigger,
+.dg-header-cell-open .dg-header-cell-trigger,
+.dg-header-cell-trigger:focus-visible {
+  opacity: 1;
 }
 
 .dg-body {

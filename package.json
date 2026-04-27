@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/icons": "~6.2.2",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.24",
+    "antd": "^6.3.7",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router": "^7.14.2"

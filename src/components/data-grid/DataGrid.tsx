@@ -3,11 +3,7 @@ import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 
 import { Body } from "./Body";
 import { Header } from "./Header";
-import {
-  DEFAULT_HEADER_HEIGHT,
-  DEFAULT_OVERSCAN,
-  DEFAULT_ROW_HEIGHT,
-} from "./constants";
+import { DEFAULT_OVERSCAN, DEFAULT_ROW_HEIGHT } from "./constants";
 import { useGridVirtualizers } from "./useGridVirtualizers";
 import type { DataGridProps } from "./types";
 import "./DataGrid.css";
@@ -15,9 +11,9 @@ import "./DataGrid.css";
 export const DataGrid = <TData,>({
   data,
   columns,
-  defaultColumnPinning,
+  columnPinning,
+  onColumnPinningChange,
   rowHeight = DEFAULT_ROW_HEIGHT,
-  headerHeight = DEFAULT_HEADER_HEIGHT,
   overscan = DEFAULT_OVERSCAN,
   className,
   style,
@@ -29,7 +25,8 @@ export const DataGrid = <TData,>({
     columns,
     getCoreRowModel: getCoreRowModel(),
     enableColumnPinning: true,
-    initialState: { columnPinning: defaultColumnPinning },
+    state: { columnPinning },
+    onColumnPinningChange,
   });
 
   const { rowVirtualizer, columnVirtualizer } = useGridVirtualizers({
@@ -54,7 +51,7 @@ export const DataGrid = <TData,>({
       <Header
         table={table}
         columnVirtualizer={columnVirtualizer}
-        height={headerHeight}
+        height={rowHeight}
         totalWidth={totalWidth}
         leftTotalWidth={leftTotalWidth}
       />

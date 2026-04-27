@@ -1,5 +1,7 @@
-import { flexRender, type Table } from "@tanstack/react-table";
+import type { Table } from "@tanstack/react-table";
 import type { Virtualizer } from "@tanstack/react-virtual";
+
+import { HeaderCell } from "./HeaderCell";
 
 type Props<TData> = {
   table: Table<TData>;
@@ -41,70 +43,45 @@ export const Header = <TData,>({
             style={{ height, width: totalWidth }}
           >
             {leftHeaders.map((header, idx) => (
-              <div
+              <HeaderCell
                 key={header.id}
+                header={header}
+                height={height}
                 className={
                   idx === lastLeft
                     ? "dg-header-cell dg-pinned-left dg-pinned-left-last"
                     : "dg-header-cell dg-pinned-left"
                 }
-                style={{
-                  height,
-                  width: header.getSize(),
-                  left: header.column.getStart("left"),
-                }}
-              >
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-              </div>
+                style={{ left: header.column.getStart("left") }}
+              />
             ))}
             {virtualColumns.map((vc) => {
               const header = centerHeaders[vc.index];
               if (!header) return null;
               return (
-                <div
+                <HeaderCell
                   key={header.id}
+                  header={header}
+                  height={height}
                   className="dg-header-cell"
                   style={{
-                    height,
-                    width: vc.size,
                     transform: `translateX(${leftTotalWidth + vc.start}px)`,
                   }}
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </div>
+                />
               );
             })}
             {rightHeaders.map((header, idx) => (
-              <div
+              <HeaderCell
                 key={header.id}
+                header={header}
+                height={height}
                 className={
                   idx === 0
                     ? "dg-header-cell dg-pinned-right dg-pinned-right-first"
                     : "dg-header-cell dg-pinned-right"
                 }
-                style={{
-                  height,
-                  width: header.getSize(),
-                  right: header.column.getAfter("right"),
-                }}
-              >
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-              </div>
+                style={{ right: header.column.getAfter("right") }}
+              />
             ))}
           </div>
         );
