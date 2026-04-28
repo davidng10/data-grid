@@ -1,13 +1,14 @@
 import {
   flexRender,
   type Cell as TableCell,
+  type ColumnOrderState,
   type ColumnPinningState,
   type Row,
 } from "@tanstack/react-table";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { memo, type CSSProperties } from "react";
 
-type Props<TData> = {
+type BodyProps<TData> = {
   rows: Row<TData>[];
   virtualRows: VirtualItem[];
   virtualColumns: VirtualItem[];
@@ -18,6 +19,10 @@ type Props<TData> = {
   // even though `rows` itself is reference-equal. Without this prop Body
   // would skip and the body would render stale cell distribution.
   columnPinning: ColumnPinningState | undefined;
+  // Same unused-prop-for-memo trick as columnPinning: row.getCenterVisibleCells
+  // returns reordered cells when columnOrder changes, but the `rows` reference
+  // doesn't, so Body needs an explicit signal to re-render.
+  columnOrder: ColumnOrderState | undefined;
 };
 
 type CellProps<TData> = {
@@ -74,7 +79,7 @@ const BodyInner = <TData,>({
   virtualRows,
   virtualColumns,
   bodyHeight,
-}: Props<TData>) => {
+}: BodyProps<TData>) => {
   return (
     <div
       className="dg-body"

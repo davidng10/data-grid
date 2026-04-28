@@ -54,6 +54,22 @@
   text-overflow: ellipsis;
 }
 
+.dg-header-cell-grab {
+  cursor: grab;
+  /* Without this, dnd-kit's PointerSensor on touch devices fights browser
+   * scroll. Restricted to the activator area so resize/dropdown keep their
+   * own touch behavior. */
+  touch-action: none;
+}
+
+.dg-header-cell-dragging .dg-header-cell-grab {
+  cursor: grabbing;
+}
+
+.dg-header-cell-dragging {
+  background: #fafafa;
+}
+
 .dg-header-cell-trigger {
   flex-shrink: 0;
   opacity: 0;

@@ -1,28 +1,50 @@
 import { MoreOutlined } from "@ant-design/icons";
+import type {
+  DraggableAttributes,
+  DraggableSyntheticListeners,
+} from "@dnd-kit/core";
 import { flexRender, type Header } from "@tanstack/react-table";
 import { Button, Dropdown, type MenuProps } from "antd";
 import { memo, useMemo, useState, type CSSProperties } from "react";
+
+type SortableTransform = { x: number; y: number } | null;
 
 type Props<TData> = {
   header: Header<TData, unknown>;
   height: number;
   className: string;
   resizeEnabled: boolean;
+  // Sortable wiring is passed flat (rather than as one object) so that for
+  // non-dragging cells the prop refs stay stable across pointer-move
+  // re-renders inside SortableContext, and React.memo below can skip.
+  // Pinned cells receive these as undefined and skip the sortable code.
+  sortableSetNodeRef?: (el: HTMLElement | null) => void;
+  sortableSetActivatorRef?: (el: HTMLElement | null) => void;
+  sortableListeners?: DraggableSyntheticListeners;
+  sortableAttributes?: DraggableAttributes;
+  sortableTransform?: SortableTransform;
+  sortableTransition?: string;
+  sortableIsDragging?: boolean;
 };
 
-// Width and position are read from CSS custom properties set on the scroll
-// container by DataGrid. That makes this component's props invariant to
-// column sizing changes — the memo skip below catches every resize commit.
 const HeaderCellInner = <TData,>({
   header,
   height,
   className,
   resizeEnabled,
+  sortableSetNodeRef,
+  sortableSetActivatorRef,
+  sortableListeners,
+  sortableAttributes,
+  sortableTransform,
+  sortableTransition,
+  sortableIsDragging,
 }: Props<TData>) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const pinned = header.column.getIsPinned();
   const canResize = header.column.getCanResize();
   const id = header.column.id;
+  const isSortable = Boolean(sortableSetNodeRef);
 
   const items: MenuProps["items"] = [
     {
@@ -44,37 +66,73 @@ const HeaderCellInner = <TData,>({
     },
   ];
 
-  const wrapperClassName = menuOpen
-    ? `${className} dg-header-cell-open`
-    : className;
+  let wrapperClassName = className;
+  if (menuOpen) wrapperClassName += " dg-header-cell-open";
+  if (sortableIsDragging) wrapperClassName += " dg-header-cell-dragging";
 
+  // Center cells position via `left` (not transform) so dnd-kit's measurement
+  // sees the correct rect. dnd-kit calls getBoundingClientRect with
+  // ignoreTransform: true and runs inverseTransform on the element's CSS
+  // transform — meaning a `transform: translateX(slot)` would be stripped and
+  // every cell would measure to the same x=0, breaking collision detection
+  // and the strategy. With `left`, the slot position lives in the layout box
+  // and only dnd-kit's own transform sits in `transform`.
   const style: CSSProperties = useMemo(() => {
+    let base: CSSProperties;
     if (pinned === "left") {
-      return {
+      base = {
         height,
         width: `var(--dg-col-${id}-size)`,
         left: `var(--dg-col-${id}-pinned-left)`,
       };
     } else if (pinned === "right") {
-      return {
+      base = {
         height,
         width: `var(--dg-col-${id}-size)`,
         right: `var(--dg-col-${id}-pinned-right)`,
       };
     } else {
-      return {
+      base = {
         height,
         width: `var(--dg-col-${id}-size)`,
-        transform: `translateX(calc(var(--dg-left-total) + var(--dg-col-${id}-start)))`,
+        left: `calc(var(--dg-left-total) + var(--dg-col-${id}-start))`,
       };
+      if (sortableTransform) {
+        base.transform = `translate3d(${sortableTransform.x}px, ${sortableTransform.y}px, 0)`;
+      }
+      // dnd-kit returns a transition string (e.g. "transform 200ms ease") on
+      // non-dragging cells during a sort, and undefined on the dragged cell
+      // itself (so cursor tracking is lag-free). Forwarding it as-is gives
+      // neighbours a smooth slide-out, and a slide-in on drop when their
+      // index changes (via dnd-kit's useDerivedTransform).
+      if (sortableTransition) {
+        base.transition = sortableTransition;
+      }
     }
-  }, [height, id, pinned]);
+    if (sortableIsDragging) {
+      base.zIndex = 5;
+    }
+    return base;
+  }, [height, id, pinned, sortableTransform, sortableTransition, sortableIsDragging]);
 
   return (
-    <div className={wrapperClassName} style={style}>
+    <div
+      ref={sortableSetNodeRef}
+      className={wrapperClassName}
+      style={style}
+    >
       {!header.isPlaceholder && (
         <>
-          <span className="dg-header-cell-content">
+          <span
+            ref={sortableSetActivatorRef}
+            className={
+              isSortable
+                ? "dg-header-cell-content dg-header-cell-grab"
+                : "dg-header-cell-content"
+            }
+            {...(sortableListeners ?? {})}
+            {...(sortableAttributes ?? {})}
+          >
             {flexRender(header.column.columnDef.header, header.getContext())}
           </span>
           <Dropdown

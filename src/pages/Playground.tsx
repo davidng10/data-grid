@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   DataGrid,
   type ColumnDef,
+  type ColumnOrderState,
   type ColumnPinningState,
   type ColumnSizingState,
 } from "../components/data-grid";
@@ -115,6 +116,17 @@ export const Playground = () => {
     [preset.rows, preset.cols],
   );
 
+  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>(() =>
+    columns.map((c) => c.id ?? (c as { accessorKey: string }).accessorKey),
+  );
+  // Reset order when the column set changes (preset switch). Otherwise the
+  // controlled order would be referring to ids that no longer exist.
+  useEffect(() => {
+    setColumnOrder(
+      columns.map((c) => c.id ?? (c as { accessorKey: string }).accessorKey),
+    );
+  }, [columns]);
+
   return (
     <div
       style={{
@@ -178,6 +190,8 @@ export const Playground = () => {
             onColumnPinningChange={setColumnPinning}
             columnSizing={columnSizing}
             onColumnSizingChange={setColumnSizing}
+            columnOrder={columnOrder}
+            onColumnOrderChange={setColumnOrder}
             style={{ width: 600, height: 400 }}
           />
         </div>
@@ -190,6 +204,8 @@ export const Playground = () => {
             onColumnPinningChange={setColumnPinning}
             columnSizing={columnSizing}
             onColumnSizingChange={setColumnSizing}
+            columnOrder={columnOrder}
+            onColumnOrderChange={setColumnOrder}
           />
         </div>
       )}

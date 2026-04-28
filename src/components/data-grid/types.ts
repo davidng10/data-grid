@@ -1,12 +1,19 @@
 import type {
   ColumnDef,
+  ColumnOrderState,
   ColumnPinningState,
   ColumnSizingState,
   OnChangeFn,
 } from "@tanstack/react-table";
 import type { CSSProperties } from "react";
 
-export type { ColumnDef, ColumnPinningState, ColumnSizingState, OnChangeFn };
+export type {
+  ColumnDef,
+  ColumnOrderState,
+  ColumnPinningState,
+  ColumnSizingState,
+  OnChangeFn,
+};
 
 /**
  * Props for the DataGrid component.
@@ -44,6 +51,23 @@ export type DataGridProps<TData> = {
    * state updates; only the final committed width does.
    */
   onColumnSizingChange?: OnChangeFn<ColumnSizingState>;
+  /**
+   * Controlled column order. The caller owns the array and must update it
+   * from `onColumnOrderChange` for reorder to take effect. Reorder is enabled
+   * only when `onColumnOrderChange` is provided. The array must contain the
+   * id of every column in `columns`; passing a partial list will lead to
+   * undefined ordering for the missing ones. Pinned columns may appear
+   * anywhere in the array — their pinned position is determined by
+   * `columnPinning`, not their index here.
+   */
+  columnOrder?: ColumnOrderState;
+  /**
+   * Called during drag (live commit, on every cross-over) with an updater
+   * (value or `(prev) => next`) — compatible with `useState`'s setter. Only
+   * non-pinned (center) columns are reorderable, and only within the center
+   * zone; pinned columns are not draggable and not valid drop targets.
+   */
+  onColumnOrderChange?: OnChangeFn<ColumnOrderState>;
   rowHeight?: number;
   overscan?: number;
   className?: string;

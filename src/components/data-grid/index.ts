@@ -1,6 +1,7 @@
 export { DataGrid } from "./DataGrid";
 export type {
   ColumnDef,
+  ColumnOrderState,
   ColumnPinningState,
   ColumnSizingState,
   DataGridProps,
