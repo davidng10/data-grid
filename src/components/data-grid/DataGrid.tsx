@@ -5,7 +5,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type Modifier,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
@@ -21,14 +20,6 @@ import {
 import { useGridVirtualizers } from "./useGridVirtualizers";
 import type { DataGridProps } from "./types";
 import "./DataGrid.css";
-
-// Inline rather than pulling in @dnd-kit/modifiers for one trivial fn. Locks
-// the dragged column's transform to the horizontal axis so vertical cursor
-// drift doesn't visibly tilt the floating header.
-const restrictToHorizontalAxis: Modifier = ({ transform }) => ({
-  ...transform,
-  y: 0,
-});
 
 export const DataGrid = <TData,>({
   data,
@@ -197,7 +188,6 @@ export const DataGrid = <TData,>({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      modifiers={[restrictToHorizontalAxis]}
       onDragEnd={handleDragEnd}
     >
       {grid}
