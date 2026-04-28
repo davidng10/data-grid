@@ -66,8 +66,11 @@
   cursor: grabbing;
 }
 
+/* While dragging, the source cell renders as a faded ghost in its drop-target
+ * slot (dnd-kit's strategy snaps it there because <DragOverlay> is mounted).
+ * The vivid moving preview lives in the portal — see .dg-header-cell-overlay. */
 .dg-header-cell-dragging {
-  background: #fafafa;
+  opacity: 0.4;
 }
 
 .dg-header-cell-trigger {
