@@ -1,3 +1,7 @@
+:root {
+  --dg-border-color: #d9d9d9;
+}
+
 .dg-container {
   width: 100%;
   height: 100%;
@@ -7,8 +11,10 @@
   position: relative;
   contain: strict;
   background: #fff;
-  border: 1px solid #e5e4e7;
+  border: 1px solid var(--dg-border-color);
   overscroll-behavior: none;
+  border-radius: 8px;
+  scrollbar-width: thin;
 }
 
 .dg-header {
@@ -16,7 +22,7 @@
   top: 0;
   z-index: 1;
   background: #fff;
-  border-bottom: 1px solid #e5e4e7;
+  border-bottom: 1px solid var(--dg-border-color);
 }
 
 .dg-header-row {
@@ -32,10 +38,9 @@
   align-items: center;
   gap: 4px;
   padding: 0 8px 0 12px;
-  font-weight: 600;
-  color: #08060d;
+  color: #999;
   background: #fff;
-  border-right: 1px solid #e5e4e7;
+  border-right: 1px solid var(--dg-border-color);
   box-sizing: border-box;
   user-select: none;
   flex-shrink: 0;
@@ -80,8 +85,8 @@
   align-items: center;
   padding: 0 12px;
   background: #fff;
-  border-right: 1px solid #e5e4e7;
-  border-bottom: 1px solid #e5e4e7;
+  border-right: 1px solid var(--dg-border-color);
+  border-bottom: 1px solid var(--dg-border-color);
   box-sizing: border-box;
   white-space: nowrap;
   overflow: hidden;
@@ -113,10 +118,10 @@
 
 /* Visual separators between zones. */
 .dg-pinned-left-last {
-  border-right: 1px solid #e5e4e7;
+  border-right: 1px solid var(--dg-border-color);
 }
 .dg-pinned-right-first {
-  border-left: 1px solid #e5e4e7;
+  border-left: 1px solid var(--dg-border-color);
 }
 
 /* Resize handle: 6px hit target on the right edge of every resizable header
@@ -127,7 +132,7 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 6px;
+  width: 4px;
   height: 100%;
   cursor: col-resize;
   z-index: 4;
@@ -137,5 +142,5 @@
 
 .dg-resize-handle:hover,
 .dg-resize-handle:active {
-  background: rgba(22, 119, 255, 0.4);
+  background: #999999
 }
