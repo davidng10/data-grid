@@ -10,8 +10,8 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 
-import { Body } from "./Body";
-import { Header } from "./Header";
+import { Body } from "./components/Body";
+import { Header } from "./components/header/Header";
 import {
   DEFAULT_MIN_COLUMN_WIDTH,
   DEFAULT_OVERSCAN,
@@ -24,18 +24,32 @@ import "./DataGrid.css";
 export const DataGrid = <TData,>({
   data,
   columns,
-  columnPinning,
-  onColumnPinningChange,
-  columnSizing,
-  onColumnSizingChange,
   columnOrder,
+  columnSizing,
+  columnPinning,
   onColumnOrderChange,
+  onColumnSizingChange,
+  onColumnPinningChange,
+  onCellChange,
   rowHeight = DEFAULT_ROW_HEIGHT,
   overscan = DEFAULT_OVERSCAN,
   className,
   style,
 }: DataGridProps<TData>) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const onCellChangeRef = useRef(onCellChange);
+  useEffect(() => {
+    onCellChangeRef.current = onCellChange;
+  }, [onCellChange]);
+
+  const meta = useMemo(
+    () => ({
+      updateData: (rowIndex: number, columnId: string, value: unknown) =>
+        onCellChangeRef.current?.(rowIndex, columnId, value),
+    }),
+    [],
+  );
 
   const table = useReactTable({
     data,
@@ -49,6 +63,7 @@ export const DataGrid = <TData,>({
     onColumnPinningChange,
     onColumnSizingChange,
     onColumnOrderChange,
+    meta,
   });
 
   const { rowVirtualizer, columnVirtualizer } = useGridVirtualizers({
@@ -89,7 +104,6 @@ export const DataGrid = <TData,>({
     return vars;
     // table itself is unstable across renders (TanStack Table's design); we
     // depend on the state slices that drive the computed sizes/order.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnSizing, columnPinning, columnOrder, columns]);
 
   const isResizing = Boolean(
@@ -103,44 +117,37 @@ export const DataGrid = <TData,>({
   const resizeEnabled = Boolean(onColumnSizingChange);
   const reorderEnabled = Boolean(onColumnOrderChange);
 
-  const containerStyle: CSSProperties = {
-    ...(columnVars as CSSProperties),
-    ...style,
-  };
+  const containerStyle: CSSProperties = useMemo(() => {
+    return {
+      ...(columnVars as CSSProperties),
+      ...style,
+    };
+  }, [columnVars, style]);
 
-  const rows = table.getRowModel().rows;
+  const bodyHeight = rowVirtualizer.getTotalSize();
   const virtualRows = rowVirtualizer.getVirtualItems();
   const virtualColumns = columnVirtualizer.getVirtualItems();
-  const bodyHeight = rowVirtualizer.getTotalSize();
+
+  const rows = table.getRowModel().rows;
   const leftHeaderGroups = table.getLeftHeaderGroups();
-  const centerHeaderGroups = table.getCenterHeaderGroups();
   const rightHeaderGroups = table.getRightHeaderGroups();
+  const centerHeaderGroups = table.getCenterHeaderGroups();
 
-  const centerColumnIds = useMemo(
-    () => table.getCenterVisibleLeafColumns().map((c) => c.id),
-    // Same dependency story as columnVars: the table instance itself is
-    // unstable; the state slices that determine the center zone aren't.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [columnPinning, columnOrder, columns],
-  );
-
-  // 5px activation distance: a click on the header content area (e.g. a
-  // future sort or just dead space) doesn't get hijacked into a drag, and
-  // pointerdown on the resize handle / dropdown trigger is a non-issue
-  // anyway because those nodes sit outside the activator ref (the content
-  // span). KeyboardSensor intentionally omitted — see limitations.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  // Commit on drop, not during drag. dnd-kit's horizontalListSortingStrategy
-  // handles in-flight visual feedback (non-dragged cells slide out of the
-  // way, dragged cell tracks the cursor). columnOrder updates once on
-  // mouseup; the CSS-var dictionary recomputes and cells settle into their
-  // new positions. Live-commit on dragOver was tried first and double-applies
-  // transforms with the strategy. arrayMove operates on the full columnOrder
-  // so pinned columns retain their array positions (visual position is
-  // driven by columnPinning, not by index here).
+  const centerColumnIds = useMemo(
+    () => table.getCenterVisibleLeafColumns().map((c) => c.id),
+    [columnPinning, columnOrder, columns],
+  );
+
+  const configIdentity = useMemo(() => {
+    return JSON.stringify({ columnPinning, columnOrder });
+  }, [columnPinning, columnOrder]);
+
+  // Commit on drop, not during drag.
+  // Live-commit on dragOver costs too much FPS.
   const handleDragEnd = (event: DragEndEvent) => {
     if (!onColumnOrderChange) return;
     const { active, over } = event;
@@ -162,22 +169,21 @@ export const DataGrid = <TData,>({
       style={containerStyle}
     >
       <Header
-        leftHeaderGroups={leftHeaderGroups}
-        centerHeaderGroups={centerHeaderGroups}
-        rightHeaderGroups={rightHeaderGroups}
-        virtualColumns={virtualColumns}
         height={rowHeight}
         resizeEnabled={resizeEnabled}
         reorderEnabled={reorderEnabled}
+        virtualColumns={virtualColumns}
         centerColumnIds={centerColumnIds}
+        leftHeaderGroups={leftHeaderGroups}
+        rightHeaderGroups={rightHeaderGroups}
+        centerHeaderGroups={centerHeaderGroups}
       />
       <Body
         rows={rows}
+        bodyHeight={bodyHeight}
         virtualRows={virtualRows}
         virtualColumns={virtualColumns}
-        bodyHeight={bodyHeight}
-        columnPinning={columnPinning}
-        columnOrder={columnOrder}
+        configIdentity={configIdentity}
       />
     </div>
   );

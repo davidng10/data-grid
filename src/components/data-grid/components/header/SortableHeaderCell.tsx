@@ -43,9 +43,7 @@ export const SortableHeaderCell = <TData,>({
       sortableSetActivatorRef={setActivatorNodeRef}
       sortableListeners={listeners}
       sortableAttributes={attributes}
-      sortableTransform={
-        transform ? { x: transform.x, y: transform.y } : null
-      }
+      sortableTransform={transform ? { x: transform.x, y: transform.y } : null}
       sortableTransition={transition}
       sortableIsDragging={isDragging}
     />

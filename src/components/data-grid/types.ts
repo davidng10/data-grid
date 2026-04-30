@@ -4,8 +4,22 @@ import type {
   ColumnPinningState,
   ColumnSizingState,
   OnChangeFn,
+  RowData,
 } from "@tanstack/react-table";
 import type { CSSProperties } from "react";
+
+declare module "@tanstack/react-table" {
+  // TanStack treats TableMeta as a user-augmented bag; declaring updateData
+  // here lets cells reach `table.options.meta.updateData` with full types.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface TableMeta<TData extends RowData> {
+    updateData?: (
+      rowIndex: number,
+      columnId: string,
+      value: unknown,
+    ) => void | Promise<void>;
+  }
+}
 
 export type {
   ColumnDef,
@@ -68,6 +82,17 @@ export type DataGridProps<TData> = {
    * zone; pinned columns are not draggable and not valid drop targets.
    */
   onColumnOrderChange?: OnChangeFn<ColumnOrderState>;
+  /**
+   * Called when a cell commits an edit. Return a Promise to lock the cell
+   * (input stays mounted, disabled) until it resolves; rejection is treated
+   * as failure and the parent is expected to have reverted its data state.
+   * Reaches cells through `table.options.meta.updateData`.
+   */
+  onCellChange?: (
+    rowIndex: number,
+    columnId: string,
+    value: unknown,
+  ) => void | Promise<void>;
   rowHeight?: number;
   overscan?: number;
   className?: string;

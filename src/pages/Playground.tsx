@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   DataGrid,
+  NumberCell,
+  SelectCell,
+  TextCell,
   type ColumnDef,
   type ColumnOrderState,
   type ColumnPinningState,
@@ -38,14 +41,49 @@ const LAST_NAMES = [
 const CITIES = ["Singapore", "Tokyo", "Berlin", "London", "NYC", "Sydney"];
 const COUNTRIES = ["SG", "JP", "DE", "GB", "US", "AU"];
 
+const CITY_OPTIONS = CITIES.map((c) => ({ label: c, value: c }));
+const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ label: c, value: c }));
+
 const BASE_COLUMNS: ColumnDef<Row>[] = [
   { accessorKey: "id", header: "ID", size: 80 },
-  { accessorKey: "firstName", header: "First name", size: 140 },
-  { accessorKey: "lastName", header: "Last name", size: 140 },
-  { accessorKey: "email", header: "Email", size: 240 },
-  { accessorKey: "age", header: "Age", size: 80 },
-  { accessorKey: "city", header: "City", size: 160 },
-  { accessorKey: "country", header: "Country", size: 100 },
+  {
+    accessorKey: "firstName",
+    header: "First name (editable)",
+    size: 180,
+    cell: (info) => <TextCell info={info} editable />,
+  },
+  {
+    accessorKey: "lastName",
+    header: "Last name (editable)",
+    size: 180,
+    cell: (info) => <TextCell info={info} editable />,
+  },
+  {
+    accessorKey: "email",
+    header: "Email (async ~600ms)",
+    size: 240,
+    cell: (info) => <TextCell info={info} editable />,
+  },
+  {
+    accessorKey: "age",
+    header: "Age (editable)",
+    size: 120,
+    cell: (info) => <NumberCell info={info} editable min={0} max={120} />,
+  },
+  {
+    accessorKey: "city",
+    header: "City (editable)",
+    size: 160,
+    cell: (info) => <SelectCell info={info} editable options={CITY_OPTIONS} />,
+  },
+  {
+    accessorKey: "country",
+    header: "Country (async, 30% fail)",
+    size: 180,
+    cell: (info) => (
+      <SelectCell info={info} editable options={COUNTRY_OPTIONS} />
+    ),
+  },
   { accessorKey: "joinedAt", header: "Joined", size: 140 },
 ];
 
@@ -111,9 +149,48 @@ export const Playground = () => {
   const preset = PRESETS[presetIdx];
 
   const columns = useMemo(() => buildColumns(preset.cols), [preset.cols]);
-  const data = useMemo(
-    () => buildData(preset.rows, preset.cols),
-    [preset.rows, preset.cols],
+  const [data, setData] = useState<Row[]>(() =>
+    buildData(preset.rows, preset.cols),
+  );
+  useEffect(() => {
+    setData(buildData(preset.rows, preset.cols));
+  }, [preset.rows, preset.cols]);
+
+  const onCellChange = useMemo(
+    () => (rowIndex: number, columnId: string, value: unknown) => {
+      // Optimistic write. Capture prevValue from inside the setter so we
+      // don't close over a stale `data` ref.
+      let prevValue: string | number | undefined;
+      setData((prev) => {
+        prevValue = prev[rowIndex]?.[columnId];
+        return prev.map((r, i) =>
+          i === rowIndex ? { ...r, [columnId]: value as string | number } : r,
+        );
+      });
+
+      const isAsync = columnId === "email" || columnId === "country";
+      if (!isAsync) return;
+
+      const shouldFail = columnId === "country" && Math.random() < 0.3;
+      return new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+          if (shouldFail) {
+            // Parent-managed revert: restore the captured prevValue.
+            setData((prev) =>
+              prev.map((r, i) =>
+                i === rowIndex && prevValue !== undefined
+                  ? { ...r, [columnId]: prevValue }
+                  : r,
+              ),
+            );
+            reject(new Error("simulated server failure"));
+          } else {
+            resolve();
+          }
+        }, 600);
+      });
+    },
+    [],
   );
 
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>(() =>
@@ -192,6 +269,7 @@ export const Playground = () => {
             onColumnSizingChange={setColumnSizing}
             columnOrder={columnOrder}
             onColumnOrderChange={setColumnOrder}
+            onCellChange={onCellChange}
             style={{ width: 600, height: 400 }}
           />
         </div>
@@ -206,6 +284,7 @@ export const Playground = () => {
             onColumnSizingChange={setColumnSizing}
             columnOrder={columnOrder}
             onColumnOrderChange={setColumnOrder}
+            onCellChange={onCellChange}
           />
         </div>
       )}

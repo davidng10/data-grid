@@ -163,3 +163,36 @@
 .dg-resize-handle:active {
   background: #999999
 }
+
+/* Display-mode wrapper for editable cells. Full height so empty values still
+ * present a double-click target. */
+.dg-cell-display {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Edit-mode antd input fills the cell. Inner padding zeroed because the
+ * outer .dg-cell already contributes 12px on each side. */
+.dg-cell-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dg-cell-input.ant-input-affix-wrapper,
+.dg-cell-input.ant-input-number,
+.dg-cell-input.ant-select .ant-select-selector {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.dg-cell-input .ant-input,
+.dg-cell-input.ant-input-number .ant-input-number-input {
+  padding-left: 0;
+  padding-right: 0;
+}
