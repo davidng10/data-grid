@@ -1,6 +1,12 @@
 import { InputNumber } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useEffect, useRef, useState, type ComponentRef } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ComponentRef,
+} from "react";
 import type { CellContext } from "@tanstack/react-table";
 
 type NumberCellProps<TData> = {
@@ -31,6 +37,8 @@ export const NumberCell = <TData,>({
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [draft, setDraft] = useState<number | null>(null);
+  const [isPendingTransition, startTransition] = useTransition();
+  const loading = pending || isPendingTransition;
 
   useEffect(() => {
     if (editing) {
@@ -50,6 +58,7 @@ export const NumberCell = <TData,>({
       <div
         className="dg-cell-display"
         onDoubleClick={() => {
+          if (loading) return;
           cancelledRef.current = false;
           setDraft(value);
           setEditing(true);
@@ -60,26 +69,34 @@ export const NumberCell = <TData,>({
     );
   }
 
-  const commit = async () => {
-    if (pending) return;
+  const commit = () => {
+    if (loading) return;
     if (draft === value) {
       setEditing(false);
       return;
     }
     const updateData = info.table.options.meta?.updateData;
-    const result = updateData?.(info.row.index, info.column.id, draft);
-    if (result instanceof Promise) {
+
+    let result: Promise<void> | undefined;
+    startTransition(() => {
+      const r = updateData?.(info.row.index, info.column.id, draft);
+      if (r instanceof Promise) result = r;
+    });
+
+    if (result) {
       setPending(true);
-      try {
-        await result;
-      } catch {
-        // Parent owns revert.
-      } finally {
-        setPending(false);
-        setEditing(false);
-      }
+      result
+        .catch(() => {})
+        .finally(() => {
+          startTransition(() => {
+            setEditing(false);
+            setPending(false);
+          });
+        });
     } else {
-      setEditing(false);
+      startTransition(() => {
+        setEditing(false);
+      });
     }
   };
 
@@ -87,15 +104,14 @@ export const NumberCell = <TData,>({
     <InputNumber
       ref={inputRef}
       className="dg-cell-input"
-      variant="borderless"
       value={draft}
-      disabled={pending}
+      disabled={loading}
       min={min}
       max={max}
       step={step}
       precision={precision}
       controls={false}
-      suffix={pending ? <LoadingOutlined /> : undefined}
+      suffix={loading ? <LoadingOutlined /> : undefined}
       onChange={(v) => setDraft(v as number | null)}
       onPressEnter={commit}
       onBlur={() => {

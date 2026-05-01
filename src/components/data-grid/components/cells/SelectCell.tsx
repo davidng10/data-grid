@@ -1,6 +1,6 @@
 import { Select } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { CellContext } from "@tanstack/react-table";
 
 type SelectOption = { label: string; value: string | number };
@@ -20,6 +20,8 @@ export const SelectCell = <TData,>({
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [pendingValue, setPendingValue] = useState<typeof value>(undefined);
+  const [isPendingTransition, startTransition] = useTransition();
+  const loading = pending || isPendingTransition;
 
   const labelByValue = useMemo(() => {
     const m = new Map<string | number, string>();
@@ -28,7 +30,9 @@ export const SelectCell = <TData,>({
   }, [options]);
 
   const displayed =
-    value === null || value === undefined ? "" : (labelByValue.get(value) ?? String(value));
+    value === null || value === undefined
+      ? ""
+      : (labelByValue.get(value) ?? String(value));
 
   if (!editable) return <>{displayed}</>;
 
@@ -37,6 +41,7 @@ export const SelectCell = <TData,>({
       <div
         className="dg-cell-display"
         onDoubleClick={() => {
+          if (loading) return;
           setEditing(true);
         }}
       >
@@ -45,46 +50,55 @@ export const SelectCell = <TData,>({
     );
   }
 
-  const commit = async (next: typeof value) => {
-    if (pending) return;
+  const commit = (next: typeof value) => {
+    if (loading) return;
     if (next === value) {
       setEditing(false);
       return;
     }
     const updateData = info.table.options.meta?.updateData;
-    const result = updateData?.(info.row.index, info.column.id, next);
-    if (result instanceof Promise) {
+
+    let result: Promise<void> | undefined;
+    startTransition(() => {
+      const r = updateData?.(info.row.index, info.column.id, next);
+      if (r instanceof Promise) result = r;
+    });
+
+    if (result) {
+      // pendingValue keeps the Select displaying the chosen option while the
+      // parent's data update is still on the transition lane.
       setPendingValue(next);
       setPending(true);
-      try {
-        await result;
-      } catch {
-        // Parent owns revert.
-      } finally {
-        setPending(false);
-        setPendingValue(undefined);
-        setEditing(false);
-      }
+      result
+        .catch(() => {})
+        .finally(() => {
+          startTransition(() => {
+            setEditing(false);
+            setPending(false);
+            setPendingValue(undefined);
+          });
+        });
     } else {
-      setEditing(false);
+      startTransition(() => {
+        setEditing(false);
+      });
     }
   };
 
   return (
     <Select
       className="dg-cell-input dg-cell-select"
-      variant="borderless"
       autoFocus
       defaultOpen
-      disabled={pending}
+      disabled={loading}
       value={pending ? pendingValue : value}
       options={options}
-      suffixIcon={pending ? <LoadingOutlined /> : undefined}
+      suffixIcon={loading ? <LoadingOutlined /> : undefined}
       onChange={commit}
       onBlur={() => {
-        // pending=true means a commit is in flight; don't tear down the Select.
+        // loading=true means a commit is in flight; don't tear down the Select.
         // Otherwise blur means "user clicked away without picking" — exit cleanly.
-        if (pending) return;
+        if (loading) return;
         setEditing(false);
       }}
       onKeyDown={(e) => {

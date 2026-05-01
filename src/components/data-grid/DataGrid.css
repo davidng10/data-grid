@@ -1,5 +1,6 @@
 :root {
   --dg-border-color: #d9d9d9;
+  --dg-focus-primary-color: #4142CA;
 }
 
 .dg-container {
@@ -38,8 +39,9 @@
   align-items: center;
   gap: 4px;
   padding: 0 8px 0 12px;
-  color: #999;
-  background: #fff;
+  color: #000;
+  font-weight: 600;
+  background: #FAFBFA;
   border-right: 1px solid var(--dg-border-color);
   box-sizing: border-box;
   user-select: none;
@@ -165,7 +167,8 @@
 }
 
 /* Display-mode wrapper for editable cells. Full height so empty values still
- * present a double-click target. */
+ * present a double-click target. `cursor: text` is the only affordance; the
+ * cell otherwise looks identical to a non-editable one. */
 .dg-cell-display {
   flex: 1;
   min-width: 0;
@@ -177,22 +180,75 @@
   white-space: nowrap;
 }
 
-/* Edit-mode antd input fills the cell. Inner padding zeroed because the
- * outer .dg-cell already contributes 12px on each side. */
+/* Edit-mode input fills the cell edge-to-edge, ignoring .dg-cell's own
+ * padding. The input's internal 12px padding takes over so the text stays
+ * positioned where the display value was. */
 .dg-cell-input {
-  flex: 1;
-  min-width: 0;
+  position: absolute !important;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0 !important;
 }
 
-.dg-cell-input.ant-input-affix-wrapper,
-.dg-cell-input.ant-input-number,
-.dg-cell-input.ant-select .ant-select-selector {
-  padding-left: 0;
-  padding-right: 0;
+/* TextCell uses a native <input>. The selector `input.dg-cell-input` is
+ * scoped tightly so it doesn't apply to antd InputNumber/Select (their
+ * outer element is a <div>, only the inner <input> would match — and they
+ * don't carry .dg-cell-input on the inner <input>). */
+input.dg-cell-input {
+  padding: 0 12px;
+  border: none;
+  outline: none;
+  background: #fff;
+  /* Manual border lives in box-shadow so toggling never shifts content. */
+  box-shadow: inset 0 0 0 1px var(--dg-focus-primary-color);
+  /* Native <input> ships its own user-agent font; inherit so it matches
+   * the cell's text exactly (size, family, line-height). */
+  font: inherit;
+  box-sizing: border-box;
 }
 
-.dg-cell-input .ant-input,
+input.dg-cell-input:disabled {
+  background: #F5F5F5;
+  color: #B8B9B8;
+  cursor: not-allowed;
+  /* Reserve room for the saving spinner so the disabled value isn't hidden
+   * under it. Only kicks in while disabled, so non-loading edits keep the
+   * full text width. */
+  padding-right: 32px;
+}
+
+/* Saving indicator. Plain <input> has no suffix slot — we paint the icon
+ * over the cell at its right edge. The cell is the position-absolute
+ * containing block, so right:12px aligns the icon with the cell padding. */
+.dg-cell-input-suffix {
+  position: absolute;
+  right: 12px;
+  color: #B8B9B8;
+}
+
+/* InputNumber: antd nests `.ant-input-number > .ant-input-number-input-wrap >
+ * .ant-input-number-input`, each with default padding. Zero them out and put
+ * the 12px on the innermost input only so it doesn't stack. */
+.dg-cell-input.ant-input-number {
+  padding: 0 !important;
+}
+
+.dg-cell-input.ant-input-number .ant-input-number-input-wrap {
+  padding: 0;
+}
+
 .dg-cell-input.ant-input-number .ant-input-number-input {
-  padding-left: 0;
-  padding-right: 0;
+  padding: 0 12px;
 }
+
+.dg-cell-input.ant-select .ant-select-selector {
+}
+
+/* Future hook for arrow-key cell nav (image 2). Wire from JS when nav lands. */
+.dg-cell.dg-cell-active {
+  box-shadow: inset 0 0 0 1px var(--dg-focus-primary-color);
+  z-index: 5;
+}
+
+
