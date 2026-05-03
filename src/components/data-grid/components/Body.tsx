@@ -2,6 +2,7 @@ import { type Row } from "@tanstack/react-table";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { memo } from "react";
 import { Cell } from "./cells/InternalCell";
+import type { SelectionStore } from "../selectionStore";
 
 type BodyProps<TData> = {
   rows: Row<TData>[];
@@ -14,6 +15,7 @@ type BodyProps<TData> = {
    * Without this prop Body would skip and the body would render stale cell distribution.
    */
   configIdentity: string;
+  store: SelectionStore;
 };
 
 const BodyInner = <TData,>({
@@ -21,6 +23,7 @@ const BodyInner = <TData,>({
   virtualRows,
   virtualColumns,
   bodyHeight,
+  store,
 }: BodyProps<TData>) => {
   return (
     <div
@@ -34,6 +37,8 @@ const BodyInner = <TData,>({
         const rightCells = row.getRightVisibleCells();
         const centerCells = row.getCenterVisibleCells();
         const lastLeft = leftCells.length - 1;
+        const centerOffset = leftCells.length;
+        const rightOffset = leftCells.length + centerCells.length;
         return (
           // Row uses transform: translateY for vertical placement; sticky cells
           // inside transformed parents work in modern Safari but were buggy
@@ -52,6 +57,9 @@ const BodyInner = <TData,>({
                 key={cell.id}
                 cell={cell}
                 height={vr.size}
+                rowIdx={vr.index}
+                colIdx={idx}
+                store={store}
                 className={
                   idx === lastLeft
                     ? "dg-cell dg-pinned-left dg-pinned-left-last"
@@ -67,6 +75,9 @@ const BodyInner = <TData,>({
                   key={cell.id}
                   cell={cell}
                   height={vr.size}
+                  rowIdx={vr.index}
+                  colIdx={centerOffset + vc.index}
+                  store={store}
                   className="dg-cell"
                 />
               );
@@ -76,6 +87,9 @@ const BodyInner = <TData,>({
                 key={cell.id}
                 cell={cell}
                 height={vr.size}
+                rowIdx={vr.index}
+                colIdx={rightOffset + idx}
+                store={store}
                 className={
                   idx === 0
                     ? "dg-cell dg-pinned-right dg-pinned-right-first"

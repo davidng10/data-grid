@@ -33,19 +33,18 @@ export const TextCell = <TData,>({ info, editable }: TextCellProps<TData>) => {
     }
   }, [editing]);
 
+  const handleEnableEditing = () => {
+    if (loading) return;
+    cancelledRef.current = false;
+    setDraft(value);
+    setEditing(true);
+  };
+
   if (!editable) return <>{value}</>;
 
   if (!editing) {
     return (
-      <div
-        className="dg-cell-display"
-        onDoubleClick={() => {
-          if (loading) return;
-          cancelledRef.current = false;
-          setDraft(value);
-          setEditing(true);
-        }}
-      >
+      <div className="dg-cell-display" onDoubleClick={handleEnableEditing}>
         {value}
       </div>
     );
