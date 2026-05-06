@@ -1,12 +1,14 @@
 import type {
+  CellContext,
   ColumnDef,
   ColumnOrderState,
   ColumnPinningState,
   ColumnSizingState,
   OnChangeFn,
   RowData,
+  TableOptions,
 } from "@tanstack/react-table";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MutableRefObject, ReactNode } from "react";
 
 declare module "@tanstack/react-table" {
   // TanStack treats TableMeta as a user-augmented bag; declaring updateData
@@ -21,13 +23,36 @@ declare module "@tanstack/react-table" {
   }
 }
 
-export type {
-  ColumnDef,
-  ColumnOrderState,
-  ColumnPinningState,
-  ColumnSizingState,
-  OnChangeFn,
+export type { ColumnOrderState, ColumnPinningState, ColumnSizingState, OnChangeFn };
+
+export type DataGridEditCommitOptions<TValue> = {
+  current?: TValue;
+  onPending?: () => void;
+  onSettled?: () => void;
 };
+
+export type DataGridEditCellContext<
+  TData extends RowData,
+  TValue = unknown,
+> = CellContext<TData, TValue> & {
+  value: TValue;
+  loading: boolean;
+  pending: boolean;
+  cancelledRef: MutableRefObject<boolean>;
+  cancel: () => void;
+  commit: (
+    next: TValue,
+    options?: DataGridEditCommitOptions<TValue>,
+  ) => void;
+};
+
+export type DataGridColumnDef<TData extends RowData, TValue = unknown> =
+  ColumnDef<TData, TValue> & {
+    editable?: boolean;
+    editCell?: (context: DataGridEditCellContext<TData, TValue>) => ReactNode;
+  };
+
+export type { DataGridColumnDef as ColumnDef };
 
 /**
  * Props for the DataGrid component.
@@ -37,9 +62,14 @@ export type {
  * TanStack Table to rebuild its internal model on every render and will tank
  * performance at scale.
  */
-export type DataGridProps<TData> = {
+export type DataGridProps<TData extends RowData> = {
   data: TData[];
-  columns: ColumnDef<TData>[];
+  columns: DataGridColumnDef<TData>[];
+  /**
+   * Stable row id resolver used by TanStack Table and grid navigation.
+   * Provide this whenever row identity is not the array index.
+   */
+  getRowId?: TableOptions<TData>["getRowId"];
   /**
    * Controlled column pinning. The caller owns the state and must update it
    * from `onColumnPinningChange` for pinning to change. Use column ids
@@ -94,7 +124,8 @@ export type DataGridProps<TData> = {
     value: unknown,
   ) => void | Promise<void>;
   rowHeight?: number;
-  overscan?: number;
+  rowOverscan?: number;
+  columnOverscan?: number;
   className?: string;
   style?: CSSProperties;
 };

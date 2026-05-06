@@ -9,7 +9,8 @@ export type {
 } from "./types";
 export {
   DEFAULT_MIN_COLUMN_WIDTH,
-  DEFAULT_OVERSCAN,
+  DEFAULT_ROW_OVERSCAN,
+  DEFAULT_COLUMN_OVERSCAN,
   DEFAULT_ROW_HEIGHT,
 } from "./constants";
 export { TextCell } from "./components/cells/TextCell";

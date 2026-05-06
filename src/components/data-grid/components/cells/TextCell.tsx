@@ -1,60 +1,38 @@
 import { LoadingOutlined } from "@ant-design/icons";
 import { useEffect, useRef, useState } from "react";
-import type { CellContext } from "@tanstack/react-table";
-import { useCellEditor } from "./useCellEditor";
+import type { RowData } from "@tanstack/react-table";
+import type { DataGridEditCellContext } from "../../types";
 
-type TextCellProps<TData> = {
-  info: CellContext<TData, unknown>;
-  editable?: boolean;
+type TextCellProps<TData extends RowData> = {
+  context: DataGridEditCellContext<TData, unknown>;
 };
 
 /**
- * TextCell uses input for handling edits
+ * TextCell uses input for grid-owned edits
  * because it has no overheads compared to using a component library.
  */
-export const TextCell = <TData,>({ info, editable }: TextCellProps<TData>) => {
+export const TextCell = <TData extends RowData>({
+  context,
+}: TextCellProps<TData>) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [draft, setDraft] = useState("");
-  const { editing, loading, cancelledRef, beginEdit, cancelEdit, commit } =
-    useCellEditor();
-
-  const value = String(info.getValue() ?? "");
+  const value = String(context.value ?? "");
+  const [draft, setDraft] = useState(value);
+  const { loading, cancelledRef, cancel, commit } = context;
 
   useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus({ preventScroll: true });
-      inputRef.current?.select();
-    }
-  }, [editing]);
+    inputRef.current?.focus({ preventScroll: true });
+    inputRef.current?.select();
+  }, []);
 
-  const handleEnableEditing = () => {
-    if (loading) return;
-    setDraft(value);
-    beginEdit();
-  };
+  useEffect(() => {
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, [cancelledRef]);
 
   const handleCommit = () => {
-    commit({
-      next: draft,
-      current: value,
-      updateData: (next) =>
-        info.table.options.meta?.updateData?.(
-          info.row.index,
-          info.column.id,
-          next,
-        ),
-    });
+    commit(draft, { current: value });
   };
-
-  if (!editable) return <>{value}</>;
-
-  if (!editing) {
-    return (
-      <div className="dg-cell-display" onDoubleClick={handleEnableEditing}>
-        {value}
-      </div>
-    );
-  }
 
   return (
     <>
@@ -80,7 +58,7 @@ export const TextCell = <TData,>({ info, editable }: TextCellProps<TData>) => {
           if (e.key === "Escape") {
             e.preventDefault();
             e.stopPropagation();
-            cancelEdit();
+            cancel();
           }
         }}
       />

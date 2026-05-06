@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 
 type CommitArgs<T> = {
   next: T;
@@ -8,52 +8,44 @@ type CommitArgs<T> = {
   // for cell-local UI that needs to display the in-flight value (e.g. the
   // SelectCell's pendingValue keeping the chosen option visible).
   onPending?: () => void;
-  // Fired (inside a transition) when an async commit settles, before
-  // setEditing(false). Use to clear any onPending side state.
+  // Fired when an async commit settles, before the grid exits edit mode. Use
+  // to clear any onPending side state.
   onSettled?: () => void;
 };
 
 /**
- * Shared edit-state machine for editor cells. Owns the editing/pending flags,
- * the unmount cleanup that lets the virtualizer drop a row safely, and the
- * commit lifecycle (sync vs async, transition wrapping, dead-fiber guard).
+ * Shared commit lifecycle for grid-owned editor cells. The grid owns whether
+ * a cell is in edit mode; this hook owns pending state and transition-wrapped
+ * commits for the editor currently mounted in that cell.
+ *
+ * TODO: scroll-during-edit persists the draft. When the virtualizer drops the
+ * row, the input's removal fires onBlur → commit(), which calls updateData
+ * with the half-typed value. To discard instead, flip cancelledRef in a
+ * useEffect cleanup in the consuming cell (TextCell/NumberCell).
  */
-export const useCellEditor = () => {
+type Args = {
+  closeEditor: () => void;
+};
+
+export const useCellEditor = ({ closeEditor }: Args) => {
   // Esc-cancel races with onBlur (the blur fires as a side effect of
   // unmounting the input). Without this flag, Esc would commit via the blur
   // path. Cells that commit on blur read this in their blur handler.
   const cancelledRef = useRef(false);
-  const isMountedRef = useRef(true);
-  const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [isPendingTransition, startTransition] = useTransition();
   const loading = pending || isPendingTransition;
 
-  // Virtualizer drops rows that scroll out of the overscan window. On unmount,
-  // suppress any blur-fired commit during teardown (discard the draft) and
-  // mark the cell as dead so an in-flight commit's .finally is a no-op.
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-      cancelledRef.current = true;
-    };
-  }, []);
-
-  const beginEdit = useCallback(() => {
-    cancelledRef.current = false;
-    setEditing(true);
-  }, []);
-
   const cancelEdit = useCallback(() => {
     cancelledRef.current = true;
-    setEditing(false);
-  }, []);
+    closeEditor();
+  }, [closeEditor]);
 
   const commit = useCallback(
-    <T,>({ next, current, updateData, onPending, onSettled }: CommitArgs<T>) => {
+    <T>({ next, current, updateData, onPending, onSettled }: CommitArgs<T>) => {
       if (loading) return;
       if (next === current) {
-        setEditing(false);
+        closeEditor();
         return;
       }
 
@@ -73,24 +65,22 @@ export const useCellEditor = () => {
             // Parent owns revert; we just clear our pending state below.
           })
           .finally(() => {
-            // Cell unmounted while the commit was in flight — drop the
-            // closure refs to setEditing/setPending without firing
-            // dead-fiber updates.
-            if (!isMountedRef.current) return;
-            startTransition(() => {
-              setEditing(false);
-              setPending(false);
-              onSettled?.();
-            });
+            setPending(false);
+            onSettled?.();
+            closeEditor();
           });
       } else {
-        startTransition(() => {
-          setEditing(false);
-        });
+        closeEditor();
       }
     },
-    [loading],
+    [loading, closeEditor],
   );
 
-  return { editing, loading, pending, cancelledRef, beginEdit, cancelEdit, commit };
+  return {
+    loading,
+    pending,
+    cancelledRef,
+    cancelEdit,
+    commit,
+  };
 };

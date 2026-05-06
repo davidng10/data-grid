@@ -13,14 +13,33 @@ export const useGridSelection = (): GridSelectionStore => {
  */
 export const useIsActiveCell = (
   store: GridSelectionStore,
-  row: number,
-  col: number,
+  rowId: string,
+  columnId: string,
 ): boolean => {
   return useSyncExternalStore(
     store.subscribe,
     () => {
       const s = store.getSnapshot();
-      return s !== null && s.row === row && s.col === col;
+      return s !== null && s.rowId === rowId && s.columnId === columnId;
+    },
+  );
+};
+
+export const useIsEditingCell = (
+  store: GridSelectionStore,
+  rowId: string,
+  columnId: string,
+): boolean => {
+  return useSyncExternalStore(
+    store.subscribe,
+    () => {
+      const s = store.getSnapshot();
+      return (
+        s !== null &&
+        s.rowId === rowId &&
+        s.columnId === columnId &&
+        s.mode === "edit"
+      );
     },
   );
 };

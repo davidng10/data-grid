@@ -50,38 +50,48 @@ const BASE_COLUMNS: ColumnDef<Row>[] = [
     accessorKey: "firstName",
     header: "First name (editable)",
     size: 180,
-    cell: (info) => <TextCell info={info} editable />,
+    editable: true,
+    editCell: (context) => <TextCell context={context} />,
   },
   {
     accessorKey: "lastName",
     header: "Last name (editable)",
     size: 180,
-    cell: (info) => <TextCell info={info} editable />,
+    editable: true,
+    editCell: (context) => <TextCell context={context} />,
   },
   {
     accessorKey: "email",
     header: "Email (async ~600ms)",
     size: 240,
-    cell: (info) => <TextCell info={info} editable />,
+    editable: true,
+    editCell: (context) => <TextCell context={context} />,
   },
   {
     accessorKey: "age",
     header: "Age (editable)",
     size: 120,
-    cell: (info) => <NumberCell info={info} editable min={0} max={120} />,
+    editable: true,
+    editCell: (context) => (
+      <NumberCell context={context} min={0} max={120} />
+    ),
   },
   {
     accessorKey: "city",
     header: "City (editable)",
     size: 160,
-    cell: (info) => <SelectCell info={info} editable options={CITY_OPTIONS} />,
+    editable: true,
+    editCell: (context) => (
+      <SelectCell context={context} options={CITY_OPTIONS} />
+    ),
   },
   {
     accessorKey: "country",
     header: "Country (async, 30% fail)",
     size: 180,
-    cell: (info) => (
-      <SelectCell info={info} editable options={COUNTRY_OPTIONS} />
+    editable: true,
+    editCell: (context) => (
+      <SelectCell context={context} options={COUNTRY_OPTIONS} />
     ),
   },
   { accessorKey: "joinedAt", header: "Joined", size: 140 },
@@ -161,6 +171,7 @@ export const Playground = () => {
       // Optimistic write. Capture prevValue from inside the setter so we
       // don't close over a stale `data` ref.
       let prevValue: string | number | undefined;
+      console.log("onCellChange", rowIndex, columnId, value);
       setData((prev) => {
         prevValue = prev[rowIndex]?.[columnId];
         return prev.map((r, i) =>

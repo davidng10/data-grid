@@ -1,14 +1,15 @@
-export type ActiveCell = { row: number; col: number } | null;
+export type ActiveCellMode = "view" | "edit";
+export type ActiveCell = {
+  rowId: string;
+  columnId: string;
+  mode: ActiveCellMode;
+} | null;
 
 export type GridSelectionStore = {
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => ActiveCell;
-  setActive: (row: number, col: number) => void;
-  moveBy: (
-    dr: number,
-    dc: number,
-    bounds: { rowCount: number; colCount: number },
-  ) => void;
+  setActive: (rowId: string, columnId: string) => void;
+  setEditing: (rowId: string, columnId: string) => void;
   clear: () => void;
 };
 
@@ -25,8 +26,9 @@ export const createGridSelectionStore = (): GridSelectionStore => {
       state === next ||
       (state &&
         next &&
-        state.row === next.row &&
-        state.col === next.col)
+        state.rowId === next.rowId &&
+        state.columnId === next.columnId &&
+        state.mode === next.mode)
     ) {
       return;
     }
@@ -40,16 +42,8 @@ export const createGridSelectionStore = (): GridSelectionStore => {
       return () => listeners.delete(listener);
     },
     getSnapshot: () => state,
-    setActive: (row, col) => set({ row, col }),
-    moveBy: (dr, dc, { rowCount, colCount }) => {
-      if (!state) {
-        if (rowCount > 0 && colCount > 0) set({ row: 0, col: 0 });
-        return;
-      }
-      const row = Math.max(0, Math.min(rowCount - 1, state.row + dr));
-      const col = Math.max(0, Math.min(colCount - 1, state.col + dc));
-      set({ row, col });
-    },
+    setActive: (rowId, columnId) => set({ rowId, columnId, mode: "view" }),
+    setEditing: (rowId, columnId) => set({ rowId, columnId, mode: "edit" }),
     clear: () => set(null),
   };
 };

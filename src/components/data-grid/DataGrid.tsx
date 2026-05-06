@@ -8,18 +8,24 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   type CSSProperties,
 } from "react";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import {
+  getCoreRowModel,
+  useReactTable,
+  type RowData,
+} from "@tanstack/react-table";
 
 import { Body } from "./components/Body";
 import { Header } from "./components/header/Header";
 import {
   DEFAULT_MIN_COLUMN_WIDTH,
-  DEFAULT_OVERSCAN,
+  DEFAULT_ROW_OVERSCAN,
+  DEFAULT_COLUMN_OVERSCAN,
   DEFAULT_ROW_HEIGHT,
 } from "./constants";
 import { useGridVirtualizers } from "./useGridVirtualizers";
@@ -27,9 +33,10 @@ import { useCellNavigation } from "./useCellNavigation";
 import type { DataGridProps } from "./types";
 import "./DataGrid.css";
 
-export const DataGrid = <TData,>({
+export const DataGrid = <TData extends RowData>({
   data,
   columns,
+  getRowId,
   columnOrder,
   columnSizing,
   columnPinning,
@@ -38,11 +45,30 @@ export const DataGrid = <TData,>({
   onColumnPinningChange,
   onCellChange,
   rowHeight = DEFAULT_ROW_HEIGHT,
-  overscan = DEFAULT_OVERSCAN,
+  rowOverscan = DEFAULT_ROW_OVERSCAN,
+  columnOverscan = DEFAULT_COLUMN_OVERSCAN,
   className,
   style,
 }: DataGridProps<TData>) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const focusGrid = useCallback(() => {
+    // Commit/cancel starts from the editor's key/blur handler. Defer focus until
+    // that handler and the editor unmount finish, otherwise input or AntD focus
+    // cleanup can win the race and leave keyboard navigation attached to body.
+    queueMicrotask(() => {
+      const grid = scrollRef.current;
+      if (!grid) return;
+      const activeElement = grid.ownerDocument.activeElement;
+      if (
+        activeElement &&
+        activeElement !== grid.ownerDocument.body &&
+        !grid.contains(activeElement)
+      ) {
+        return;
+      }
+      grid.focus({ preventScroll: true });
+    });
+  }, []);
 
   const onCellChangeRef = useRef(onCellChange);
   useEffect(() => {
@@ -60,6 +86,7 @@ export const DataGrid = <TData,>({
   const table = useReactTable({
     data,
     columns,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     enableColumnPinning: true,
     enableColumnResizing: true,
@@ -77,7 +104,8 @@ export const DataGrid = <TData,>({
     table,
     rowCount: data.length,
     rowHeight,
-    overscan,
+    rowOverscan,
+    columnOverscan,
   });
 
   const columnVars = useMemo<Record<string, string>>(() => {
@@ -108,8 +136,9 @@ export const DataGrid = <TData,>({
     vars["--dg-left-total"] = `${leftTotal}px`;
     vars["--dg-total-width"] = `${leftTotal + centerTotal + rightTotal}px`;
     return vars;
-    // table itself is unstable across renders (TanStack Table's design); we
-    // depend on the state slices that drive the computed sizes/order.
+    // TanStack's table instance is stable while its getters read latest state;
+    // these state slices are the layout invalidation tokens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnSizing, columnPinning, columnOrder, columns]);
 
   const isResizing = Boolean(
@@ -143,37 +172,35 @@ export const DataGrid = <TData,>({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  // Counts used by keyboard nav for clamping + zone math. Recomputed when
-  // pinning/order/columns change — same dep set as columnVars above.
-  const leafCounts = useMemo(() => {
-    const left = table.getLeftVisibleLeafColumns().length;
-    const center = table.getCenterVisibleLeafColumns().length;
-    const right = table.getRightVisibleLeafColumns().length;
-    return { left, center, right, total: left + center + right };
+  const visibleColumnIds = useMemo(() => {
+    const left = table.getLeftVisibleLeafColumns().map((c) => c.id);
+    const center = table.getCenterVisibleLeafColumns().map((c) => c.id);
+    const right = table.getRightVisibleLeafColumns().map((c) => c.id);
+    return {
+      left,
+      center,
+      right,
+      all: [...left, ...center, ...right],
+    };
+    // See columnVars above for why table is intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnPinning, columnOrder, columns]);
 
-  const centerColumnIds = useMemo(
-    () => table.getCenterVisibleLeafColumns().map((c) => c.id),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [columnPinning, columnOrder, columns],
-  );
-
-  const configIdentity = useMemo(() => {
-    return JSON.stringify({ columnPinning, columnOrder });
-  }, [columnPinning, columnOrder]);
+  const columnLayoutIdentity = useMemo(() => {
+    return JSON.stringify(visibleColumnIds);
+  }, [visibleColumnIds]);
 
   const {
     store: selectionStore,
     onPointerDown,
+    onDoubleClick,
     onKeyDown,
   } = useCellNavigation({
     scrollRef,
     table,
     rowCount: data.length,
     rowHeight,
-    leafCounts,
-    configIdentity,
+    visibleColumnIds: visibleColumnIds.all,
   });
 
   // Commit on drop, not during drag.
@@ -200,13 +227,14 @@ export const DataGrid = <TData,>({
       style={containerStyle}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
+      onDoubleClick={onDoubleClick}
     >
       <Header
         height={rowHeight}
         resizeEnabled={resizeEnabled}
         reorderEnabled={reorderEnabled}
         virtualColumns={virtualColumns}
-        centerColumnIds={centerColumnIds}
+        centerColumnIds={visibleColumnIds.center}
         leftHeaderGroups={leftHeaderGroups}
         rightHeaderGroups={rightHeaderGroups}
         centerHeaderGroups={centerHeaderGroups}
@@ -216,8 +244,9 @@ export const DataGrid = <TData,>({
         bodyHeight={bodyHeight}
         virtualRows={virtualRows}
         virtualColumns={virtualColumns}
-        configIdentity={configIdentity}
+        columnLayoutIdentity={columnLayoutIdentity}
         store={selectionStore}
+        focusGrid={focusGrid}
       />
     </div>
   );

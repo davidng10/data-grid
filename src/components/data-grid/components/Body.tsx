@@ -10,12 +10,12 @@ type BodyProps<TData> = {
   virtualColumns: VirtualItem[];
   bodyHeight: number;
   /**
-   * Not read inside Body — included so the memo invalidates when pinning / order
-   * changes.
-   * Without this prop Body would skip and the body would render stale cell distribution.
+   * Not read inside Body — included so the memo invalidates when the visible
+   * leaf-column layout changes.
    */
-  configIdentity: string;
+  columnLayoutIdentity: string;
   store: GridSelectionStore;
+  focusGrid: () => void;
 };
 
 const BodyInner = <TData,>({
@@ -24,6 +24,7 @@ const BodyInner = <TData,>({
   virtualColumns,
   bodyHeight,
   store,
+  focusGrid,
 }: BodyProps<TData>) => {
   return (
     <div
@@ -37,8 +38,6 @@ const BodyInner = <TData,>({
         const rightCells = row.getRightVisibleCells();
         const centerCells = row.getCenterVisibleCells();
         const lastLeft = leftCells.length - 1;
-        const centerOffset = leftCells.length;
-        const rightOffset = leftCells.length + centerCells.length;
         return (
           // Row uses transform: translateY for vertical placement; sticky cells
           // inside transformed parents work in modern Safari but were buggy
@@ -57,9 +56,10 @@ const BodyInner = <TData,>({
                 key={cell.id}
                 cell={cell}
                 height={vr.size}
-                rowIdx={vr.index}
-                colIdx={idx}
+                rowId={row.id}
+                columnId={cell.column.id}
                 store={store}
+                focusGrid={focusGrid}
                 className={
                   idx === lastLeft
                     ? "dg-cell dg-pinned-left dg-pinned-left-last"
@@ -75,9 +75,10 @@ const BodyInner = <TData,>({
                   key={cell.id}
                   cell={cell}
                   height={vr.size}
-                  rowIdx={vr.index}
-                  colIdx={centerOffset + vc.index}
+                  rowId={row.id}
+                  columnId={cell.column.id}
                   store={store}
+                  focusGrid={focusGrid}
                   className="dg-cell"
                 />
               );
@@ -87,9 +88,10 @@ const BodyInner = <TData,>({
                 key={cell.id}
                 cell={cell}
                 height={vr.size}
-                rowIdx={vr.index}
-                colIdx={rightOffset + idx}
+                rowId={row.id}
+                columnId={cell.column.id}
                 store={store}
+                focusGrid={focusGrid}
                 className={
                   idx === 0
                     ? "dg-cell dg-pinned-right dg-pinned-right-first"

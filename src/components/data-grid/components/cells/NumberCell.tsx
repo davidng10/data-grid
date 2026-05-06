@@ -1,76 +1,50 @@
 import { InputNumber } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
-import type { CellContext } from "@tanstack/react-table";
-import { useCellEditor } from "./useCellEditor";
+import type { RowData } from "@tanstack/react-table";
+import type { DataGridEditCellContext } from "../../types";
 
-type NumberCellProps<TData> = {
-  info: CellContext<TData, unknown>;
-  editable?: boolean;
+type NumberCellProps<TData extends RowData> = {
+  context: DataGridEditCellContext<TData, unknown>;
   min?: number;
   max?: number;
   step?: number;
   precision?: number;
 };
 
-export const NumberCell = <TData,>({
-  info,
-  editable,
+export const NumberCell = <TData extends RowData>({
+  context,
   min,
   max,
   step,
   precision,
 }: NumberCellProps<TData>) => {
   const inputRef = useRef<ComponentRef<typeof InputNumber>>(null);
-  const [draft, setDraft] = useState<number | null>(null);
-  const { editing, loading, cancelledRef, beginEdit, cancelEdit, commit } =
-    useCellEditor();
-
-  const raw = info.getValue();
+  const raw = context.value;
   const value = (raw === null || raw === undefined ? null : Number(raw)) as
     | number
     | null;
+  const [draft, setDraft] = useState<number | null>(value);
+  const { loading, cancelledRef, cancel, commit } = context;
 
   useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus();
-      // Select-all on focus mirrors TextCell ergonomics. Reach through the
-      // wrapper to the underlying <input>.
-      inputRef.current?.nativeElement
-        ?.querySelector<HTMLInputElement>("input")
-        ?.select();
-    }
-  }, [editing]);
+    inputRef.current?.focus();
+    // Select-all on focus mirrors TextCell ergonomics. Reach through the
+    // wrapper to the underlying <input>.
+    inputRef.current?.nativeElement
+      ?.querySelector<HTMLInputElement>("input")
+      ?.select();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, [cancelledRef]);
 
   const handleCommit = () => {
-    commit({
-      next: draft,
-      current: value,
-      updateData: (next) =>
-        info.table.options.meta?.updateData?.(
-          info.row.index,
-          info.column.id,
-          next,
-        ),
-    });
+    commit(draft, { current: value });
   };
-
-  if (!editable) return <>{value ?? ""}</>;
-
-  if (!editing) {
-    return (
-      <div
-        className="dg-cell-display"
-        onDoubleClick={() => {
-          if (loading) return;
-          setDraft(value);
-          beginEdit();
-        }}
-      >
-        {value ?? ""}
-      </div>
-    );
-  }
 
   return (
     <InputNumber
@@ -97,7 +71,7 @@ export const NumberCell = <TData,>({
         if (e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
-          cancelEdit();
+          cancel();
         }
       }}
     />

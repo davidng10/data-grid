@@ -7,7 +7,8 @@ type Args<TData> = {
   table: Table<TData>;
   rowCount: number;
   rowHeight: number;
-  overscan: number;
+  columnOverscan: number;
+  rowOverscan: number;
 };
 
 export const useGridVirtualizers = <TData,>({
@@ -15,7 +16,8 @@ export const useGridVirtualizers = <TData,>({
   table,
   rowCount,
   rowHeight,
-  overscan,
+  rowOverscan,
+  columnOverscan,
 }: Args<TData>) => {
   // Only the center zone is column-virtualized; left/right pinned columns are
   // always rendered as sticky cells in Header/Body.
@@ -25,7 +27,7 @@ export const useGridVirtualizers = <TData,>({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => rowHeight,
-    overscan,
+    overscan: rowOverscan,
   });
 
   const columnVirtualizer = useVirtualizer({
@@ -33,7 +35,7 @@ export const useGridVirtualizers = <TData,>({
     count: visibleColumns.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: (index) => visibleColumns[index].getSize(),
-    overscan,
+    overscan: columnOverscan,
   });
 
   return { rowVirtualizer, columnVirtualizer };
