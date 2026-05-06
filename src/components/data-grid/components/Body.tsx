@@ -2,7 +2,7 @@ import { type Row } from "@tanstack/react-table";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { memo } from "react";
 import { Cell } from "./cells/InternalCell";
-import type { SelectionStore } from "../selectionStore";
+import type { GridSelectionStore } from "../gridSelectionStore";
 
 type BodyProps<TData> = {
   rows: Row<TData>[];
@@ -15,7 +15,7 @@ type BodyProps<TData> = {
    * Without this prop Body would skip and the body would render stale cell distribution.
    */
   configIdentity: string;
-  store: SelectionStore;
+  store: GridSelectionStore;
 };
 
 const BodyInner = <TData,>({

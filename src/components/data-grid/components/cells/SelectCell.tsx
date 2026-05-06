@@ -1,7 +1,8 @@
 import { Select } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import type { CellContext } from "@tanstack/react-table";
+import { useCellEditor } from "./useCellEditor";
 
 type SelectOption = { label: string; value: string | number };
 
@@ -17,11 +18,9 @@ export const SelectCell = <TData,>({
   options,
 }: SelectCellProps<TData>) => {
   const value = info.getValue() as string | number | null | undefined;
-  const [editing, setEditing] = useState(false);
-  const [pending, setPending] = useState(false);
   const [pendingValue, setPendingValue] = useState<typeof value>(undefined);
-  const [isPendingTransition, startTransition] = useTransition();
-  const loading = pending || isPendingTransition;
+  const { editing, loading, pending, beginEdit, cancelEdit, commit } =
+    useCellEditor();
 
   const labelByValue = useMemo(() => {
     const m = new Map<string | number, string>();
@@ -42,7 +41,7 @@ export const SelectCell = <TData,>({
         className="dg-cell-display"
         onDoubleClick={() => {
           if (loading) return;
-          setEditing(true);
+          beginEdit();
         }}
       >
         {displayed}
@@ -50,39 +49,21 @@ export const SelectCell = <TData,>({
     );
   }
 
-  const commit = (next: typeof value) => {
-    if (loading) return;
-    if (next === value) {
-      setEditing(false);
-      return;
-    }
-    const updateData = info.table.options.meta?.updateData;
-
-    let result: Promise<void> | undefined;
-    startTransition(() => {
-      const r = updateData?.(info.row.index, info.column.id, next);
-      if (r instanceof Promise) result = r;
-    });
-
-    if (result) {
+  const handleCommit = (next: typeof value) => {
+    commit({
+      next,
+      current: value,
+      updateData: (n) =>
+        info.table.options.meta?.updateData?.(
+          info.row.index,
+          info.column.id,
+          n,
+        ),
       // pendingValue keeps the Select displaying the chosen option while the
       // parent's data update is still on the transition lane.
-      setPendingValue(next);
-      setPending(true);
-      result
-        .catch(() => {})
-        .finally(() => {
-          startTransition(() => {
-            setEditing(false);
-            setPending(false);
-            setPendingValue(undefined);
-          });
-        });
-    } else {
-      startTransition(() => {
-        setEditing(false);
-      });
-    }
+      onPending: () => setPendingValue(next),
+      onSettled: () => setPendingValue(undefined),
+    });
   };
 
   return (
@@ -93,19 +74,20 @@ export const SelectCell = <TData,>({
       disabled={loading}
       value={pending ? pendingValue : value}
       options={options}
-      suffixIcon={loading ? <LoadingOutlined /> : undefined}
-      onChange={commit}
+      suffixIcon={<LoadingOutlined style={{ opacity: loading ? 1 : 0 }} />}
+      onChange={handleCommit}
       onBlur={() => {
-        // loading=true means a commit is in flight; don't tear down the Select.
-        // Otherwise blur means "user clicked away without picking" — exit cleanly.
+        // loading=true means a commit is in flight; don't tear down the
+        // Select. Otherwise blur means "user clicked away without picking" —
+        // exit cleanly.
         if (loading) return;
-        setEditing(false);
+        cancelEdit();
       }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
-          setEditing(false);
+          cancelEdit();
         }
       }}
     />

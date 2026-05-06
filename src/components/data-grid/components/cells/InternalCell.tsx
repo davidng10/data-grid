@@ -1,7 +1,7 @@
 import { flexRender, type Cell as TableCell } from "@tanstack/react-table";
 import { memo, type CSSProperties } from "react";
 import { useIsActiveCell } from "../../useGridSelection";
-import type { SelectionStore } from "../../selectionStore";
+import type { GridSelectionStore } from "../../gridSelectionStore";
 
 type CellProps<TData> = {
   cell: TableCell<TData, unknown>;
@@ -9,7 +9,7 @@ type CellProps<TData> = {
   className: string;
   rowIdx: number;
   colIdx: number;
-  store: SelectionStore;
+  store: GridSelectionStore;
 };
 
 /**

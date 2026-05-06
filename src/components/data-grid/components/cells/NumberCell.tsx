@@ -1,13 +1,8 @@
 import { InputNumber } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import {
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-  type ComponentRef,
-} from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import type { CellContext } from "@tanstack/react-table";
+import { useCellEditor } from "./useCellEditor";
 
 type NumberCellProps<TData> = {
   info: CellContext<TData, unknown>;
@@ -27,18 +22,14 @@ export const NumberCell = <TData,>({
   precision,
 }: NumberCellProps<TData>) => {
   const inputRef = useRef<ComponentRef<typeof InputNumber>>(null);
-  const cancelledRef = useRef(false);
+  const [draft, setDraft] = useState<number | null>(null);
+  const { editing, loading, cancelledRef, beginEdit, cancelEdit, commit } =
+    useCellEditor();
 
   const raw = info.getValue();
   const value = (raw === null || raw === undefined ? null : Number(raw)) as
     | number
     | null;
-
-  const [editing, setEditing] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [draft, setDraft] = useState<number | null>(null);
-  const [isPendingTransition, startTransition] = useTransition();
-  const loading = pending || isPendingTransition;
 
   useEffect(() => {
     if (editing) {
@@ -51,6 +42,19 @@ export const NumberCell = <TData,>({
     }
   }, [editing]);
 
+  const handleCommit = () => {
+    commit({
+      next: draft,
+      current: value,
+      updateData: (next) =>
+        info.table.options.meta?.updateData?.(
+          info.row.index,
+          info.column.id,
+          next,
+        ),
+    });
+  };
+
   if (!editable) return <>{value ?? ""}</>;
 
   if (!editing) {
@@ -59,46 +63,14 @@ export const NumberCell = <TData,>({
         className="dg-cell-display"
         onDoubleClick={() => {
           if (loading) return;
-          cancelledRef.current = false;
           setDraft(value);
-          setEditing(true);
+          beginEdit();
         }}
       >
         {value ?? ""}
       </div>
     );
   }
-
-  const commit = () => {
-    if (loading) return;
-    if (draft === value) {
-      setEditing(false);
-      return;
-    }
-    const updateData = info.table.options.meta?.updateData;
-
-    let result: Promise<void> | undefined;
-    startTransition(() => {
-      const r = updateData?.(info.row.index, info.column.id, draft);
-      if (r instanceof Promise) result = r;
-    });
-
-    if (result) {
-      setPending(true);
-      result
-        .catch(() => {})
-        .finally(() => {
-          startTransition(() => {
-            setEditing(false);
-            setPending(false);
-          });
-        });
-    } else {
-      startTransition(() => {
-        setEditing(false);
-      });
-    }
-  };
 
   return (
     <InputNumber
@@ -111,22 +83,21 @@ export const NumberCell = <TData,>({
       step={step}
       precision={precision}
       controls={false}
-      suffix={loading ? <LoadingOutlined /> : undefined}
+      suffix={<LoadingOutlined style={{ opacity: loading ? 1 : 0 }} />}
       onChange={(v) => setDraft(v as number | null)}
-      onPressEnter={commit}
+      onPressEnter={handleCommit}
       onBlur={() => {
         if (cancelledRef.current) {
           cancelledRef.current = false;
           return;
         }
-        commit();
+        handleCommit();
       }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
-          cancelledRef.current = true;
-          setEditing(false);
+          cancelEdit();
         }
       }}
     />

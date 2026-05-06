@@ -1,6 +1,6 @@
 export type ActiveCell = { row: number; col: number } | null;
 
-export type SelectionStore = {
+export type GridSelectionStore = {
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => ActiveCell;
   setActive: (row: number, col: number) => void;
@@ -12,7 +12,7 @@ export type SelectionStore = {
   clear: () => void;
 };
 
-export const createSelectionStore = (): SelectionStore => {
+export const createGridSelectionStore = (): GridSelectionStore => {
   let state: ActiveCell = null;
   const listeners = new Set<() => void>();
 

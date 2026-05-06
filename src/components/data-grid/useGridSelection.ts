@@ -1,9 +1,9 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { createSelectionStore, type SelectionStore } from "./selectionStore";
+import { createGridSelectionStore, type GridSelectionStore } from "./gridSelectionStore";
 
-export const useGridSelection = (): SelectionStore => {
+export const useGridSelection = (): GridSelectionStore => {
   // One store per grid instance, kept stable across renders.
-  return useMemo(() => createSelectionStore(), []);
+  return useMemo(() => createGridSelectionStore(), []);
 };
 
 /**
@@ -12,7 +12,7 @@ export const useGridSelection = (): SelectionStore => {
  * cell sees the same boolean and bails via React's bailout.
  */
 export const useIsActiveCell = (
-  store: SelectionStore,
+  store: GridSelectionStore,
   row: number,
   col: number,
 ): boolean => {
