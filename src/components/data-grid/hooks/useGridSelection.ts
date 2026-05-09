@@ -1,5 +1,8 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { createGridSelectionStore, type GridSelectionStore } from "./gridSelectionStore";
+import {
+  createGridSelectionStore,
+  type GridSelectionStore,
+} from "../store/gridSelectionStore";
 
 export const useGridSelection = (): GridSelectionStore => {
   // One store per grid instance, kept stable across renders.
@@ -16,13 +19,10 @@ export const useIsActiveCell = (
   rowId: string,
   columnId: string,
 ): boolean => {
-  return useSyncExternalStore(
-    store.subscribe,
-    () => {
-      const s = store.getSnapshot();
-      return s !== null && s.rowId === rowId && s.columnId === columnId;
-    },
-  );
+  return useSyncExternalStore(store.subscribe, () => {
+    const s = store.getSnapshot();
+    return s !== null && s.rowId === rowId && s.columnId === columnId;
+  });
 };
 
 export const useIsEditingCell = (
@@ -30,16 +30,13 @@ export const useIsEditingCell = (
   rowId: string,
   columnId: string,
 ): boolean => {
-  return useSyncExternalStore(
-    store.subscribe,
-    () => {
-      const s = store.getSnapshot();
-      return (
-        s !== null &&
-        s.rowId === rowId &&
-        s.columnId === columnId &&
-        s.mode === "edit"
-      );
-    },
-  );
+  return useSyncExternalStore(store.subscribe, () => {
+    const s = store.getSnapshot();
+    return (
+      s !== null &&
+      s.rowId === rowId &&
+      s.columnId === columnId &&
+      s.mode === "edit"
+    );
+  });
 };

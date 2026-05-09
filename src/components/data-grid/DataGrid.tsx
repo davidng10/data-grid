@@ -28,8 +28,8 @@ import {
   DEFAULT_COLUMN_OVERSCAN,
   DEFAULT_ROW_HEIGHT,
 } from "./constants";
-import { useGridVirtualizers } from "./useGridVirtualizers";
-import { useCellNavigation } from "./useCellNavigation";
+import { useGridVirtualizers } from "./hooks/useGridVirtualizers";
+import { useCellNavigation } from "./hooks/useCellNavigation";
 import type { DataGridProps } from "./types";
 import "./DataGrid.css";
 

@@ -8,9 +8,9 @@ import {
 } from "react";
 import type { Table } from "@tanstack/react-table";
 
-import type { GridSelectionStore } from "./gridSelectionStore";
-import type { DataGridColumnDef } from "./types";
-import { useGridSelection } from "./useGridSelection";
+import type { GridSelectionStore } from "../store/gridSelectionStore";
+import type { DataGridColumnDef } from "../types";
+import { useGridSelection } from "../hooks/useGridSelection";
 
 type Args<TData> = {
   scrollRef: RefObject<HTMLDivElement | null>;
@@ -27,7 +27,7 @@ type Return = {
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
 };
 
-export const useCellNavigation = <TData,>({
+export const useCellNavigation = <TData>({
   scrollRef,
   table,
   rowCount,
@@ -226,13 +226,7 @@ export const useCellNavigation = <TData,>({
       store.setActive(row.id, column.id);
       scrollCellIntoView(rowIndex, columnIndex);
     },
-    [
-      table,
-      getVisibleLeafColumns,
-      store,
-      getRowIndexById,
-      scrollCellIntoView,
-    ],
+    [table, getVisibleLeafColumns, store, getRowIndexById, scrollCellIntoView],
   );
 
   const onKeyDown = useCallback(

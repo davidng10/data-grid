@@ -2,7 +2,7 @@ import { type Row } from "@tanstack/react-table";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { memo } from "react";
 import { Cell } from "./cells/InternalCell";
-import type { GridSelectionStore } from "../gridSelectionStore";
+import type { GridSelectionStore } from "../store/gridSelectionStore";
 
 type BodyProps<TData> = {
   rows: Row<TData>[];
@@ -11,7 +11,8 @@ type BodyProps<TData> = {
   bodyHeight: number;
   /**
    * Not read inside Body — included so the memo invalidates when the visible
-   * leaf-column layout changes.
+   * leaf-column layout changes. Using prop instead of key because key changes
+   * will discard all subtrees fibers.
    */
   columnLayoutIdentity: string;
   store: GridSelectionStore;

@@ -1,12 +1,12 @@
 import { flexRender, type Cell as TableCell } from "@tanstack/react-table";
 import { memo, useCallback, type CSSProperties } from "react";
-import { useIsActiveCell, useIsEditingCell } from "../../useGridSelection";
-import type { GridSelectionStore } from "../../gridSelectionStore";
-import type {
-  DataGridColumnDef,
-  DataGridEditCellContext,
-} from "../../types";
-import { useCellEditor } from "./useCellEditor";
+import {
+  useIsActiveCell,
+  useIsEditingCell,
+} from "../../hooks/useGridSelection";
+import type { GridSelectionStore } from "../../store/gridSelectionStore";
+import type { DataGridColumnDef, DataGridEditCellContext } from "../../types";
+import { useCellEditor } from "../../hooks/useCellEditor";
 
 type CellProps<TData> = {
   cell: TableCell<TData, unknown>;
@@ -39,8 +39,9 @@ const CellInner = <TData,>({
     store.setActive(rowId, columnId);
     focusGrid();
   }, [store, rowId, columnId, focusGrid]);
-  const { loading, pending, cancelledRef, cancelEdit, commit } =
-    useCellEditor({ closeEditor });
+  const { loading, pending, cancelledRef, cancelEdit, commit } = useCellEditor({
+    closeEditor,
+  });
 
   let style: CSSProperties;
   if (pinned === "left") {
