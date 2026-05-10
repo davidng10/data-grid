@@ -1,5 +1,5 @@
 import { flexRender, type Cell as TableCell } from "@tanstack/react-table";
-import { memo, useCallback, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, type CSSProperties } from "react";
 import {
   useIsActiveCell,
   useIsEditingCell,
@@ -54,6 +54,26 @@ const CellInner = <TData,>({
   const { loading, pending, cancelledRef, cancelEdit, commit } = useCellEditor({
     closeEditor,
   });
+
+  // Virtualizer-driven unmount: if the store still claims we're editing this
+  // cell, the row is being dropped while in edit mode (user-exit paths flip
+  // the store to view first via closeEditor). Drop edit mode so re-mount on
+  // scroll-back doesn't auto-reopen the editor with the underlying value —
+  // the draft is gone with the unmounted component, and silently re-opening
+  // makes the loss invisible. Matches the click-away discard semantic.
+  useEffect(() => {
+    return () => {
+      const current = store.getSnapshot();
+      if (
+        current &&
+        current.rowId === rowId &&
+        current.columnId === columnId &&
+        current.mode === "edit"
+      ) {
+        store.setActive(rowId, columnId);
+      }
+    };
+  }, [store, rowId, columnId]);
 
   let style: CSSProperties;
   if (pinned === "left") {
