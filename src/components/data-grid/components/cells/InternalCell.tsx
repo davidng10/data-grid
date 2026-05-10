@@ -4,6 +4,7 @@ import {
   useIsActiveCell,
   useIsEditingCell,
 } from "../../hooks/useGridSelection";
+import { GRID_Z_INDEX } from "../../constants";
 import type { GridSelectionStore } from "../../store/gridSelectionStore";
 import type { DataGridColumnDef, DataGridEditCellContext } from "../../types";
 import { useCellEditor } from "../../hooks/useCellEditor";
@@ -49,18 +50,21 @@ const CellInner = <TData,>({
       height,
       width: `var(--dg-col-${id}-size)`,
       left: `var(--dg-col-${id}-pinned-left)`,
+      zIndex: GRID_Z_INDEX.pinnedCell,
     };
   } else if (pinned === "right") {
     style = {
       height,
       width: `var(--dg-col-${id}-size)`,
       right: `var(--dg-col-${id}-pinned-right)`,
+      zIndex: GRID_Z_INDEX.pinnedCell,
     };
   } else {
     style = {
       height,
       width: `var(--dg-col-${id}-size)`,
       transform: `translateX(calc(var(--dg-left-total) + var(--dg-col-${id}-start)))`,
+      zIndex: isActive ? GRID_Z_INDEX.activeCell : undefined,
     };
   }
 

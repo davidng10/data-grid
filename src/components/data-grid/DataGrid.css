@@ -28,7 +28,6 @@
 .dg-header {
   position: sticky;
   top: 0;
-  z-index: 1;
   background: #fff;
   border-bottom: 1px solid var(--dg-border-color);
 }
@@ -123,19 +122,11 @@
 }
 
 /* Pinned cells: opt out of absolute positioning, stick to the scroll-container
- * edge. Center cells scroll past underneath, so the opaque background and
- * higher z-index are required — without them, content bleeds through. */
+ * edge. Center cells scroll past underneath, so the opaque background is
+ * required — without it, content bleeds through. */
 .dg-pinned-left,
 .dg-pinned-right {
   position: sticky;
-  z-index: 5;
-}
-
-/* Header pinned cells need to sit above body pinned cells so the corner stays
- * clean while both axes scroll. */
-.dg-header-cell.dg-pinned-left,
-.dg-header-cell.dg-pinned-right {
-  z-index: 3;
 }
 
 /* Push the right-pinned block to the row's right edge: with center cells out
@@ -163,7 +154,6 @@
   width: 4px;
   height: 100%;
   cursor: col-resize;
-  z-index: 4;
   user-select: none;
   touch-action: none;
 }
@@ -253,7 +243,6 @@ input.dg-cell-input:disabled {
 .dg-cell.dg-cell-active {
   box-shadow: inset 0 0 0 1px var(--dg-focus-primary-color);
   background-color: #f6f6fc;
-  z-index: 2;
 }
 
 

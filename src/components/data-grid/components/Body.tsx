@@ -19,11 +19,99 @@ type BodyProps<TData> = {
   focusGrid: () => void;
 };
 
+type VirtualRowProps<TData> = {
+  row: Row<TData>;
+  virtualRow: VirtualItem;
+  virtualColumns: VirtualItem[];
+  columnLayoutIdentity: string;
+  store: GridSelectionStore;
+  focusGrid: () => void;
+};
+
+const VirtualRowInner = <TData,>({
+  row,
+  virtualRow,
+  virtualColumns,
+  store,
+  focusGrid,
+}: VirtualRowProps<TData>) => {
+  const leftCells = row.getLeftVisibleCells();
+  const centerCells = row.getCenterVisibleCells();
+  const rightCells = row.getRightVisibleCells();
+  const lastLeft = leftCells.length - 1;
+
+  return (
+    // Row uses transform: translateY for vertical placement; sticky cells
+    // inside transformed parents work in modern Safari but were buggy
+    // historically — if regressions appear, fall back to top: vr.start.
+    <div
+      className="dg-row"
+      style={{
+        height: virtualRow.size,
+        width: "var(--dg-total-width)",
+        transform: `translateY(${virtualRow.start}px)`,
+      }}
+    >
+      {leftCells.map((cell, idx) => (
+        <Cell
+          key={cell.id}
+          cell={cell}
+          height={virtualRow.size}
+          rowId={row.id}
+          columnId={cell.column.id}
+          store={store}
+          focusGrid={focusGrid}
+          className={
+            idx === lastLeft
+              ? "dg-cell dg-pinned-left dg-pinned-left-last"
+              : "dg-cell dg-pinned-left"
+          }
+        />
+      ))}
+      {virtualColumns.map((virtualColumn) => {
+        const cell = centerCells[virtualColumn.index];
+        if (!cell) return null;
+        return (
+          <Cell
+            key={cell.id}
+            cell={cell}
+            height={virtualRow.size}
+            rowId={row.id}
+            columnId={cell.column.id}
+            store={store}
+            focusGrid={focusGrid}
+            className="dg-cell"
+          />
+        );
+      })}
+      {rightCells.map((cell, idx) => (
+        <Cell
+          key={cell.id}
+          cell={cell}
+          height={virtualRow.size}
+          rowId={row.id}
+          columnId={cell.column.id}
+          store={store}
+          focusGrid={focusGrid}
+          className={
+            idx === 0
+              ? "dg-cell dg-pinned-right dg-pinned-right-first"
+              : "dg-cell dg-pinned-right"
+          }
+        />
+      ))}
+    </div>
+  );
+};
+
+const VirtualRow = memo(VirtualRowInner) as typeof VirtualRowInner;
+
 const BodyInner = <TData,>({
   rows,
   virtualRows,
   virtualColumns,
   bodyHeight,
+  columnLayoutIdentity,
   store,
   focusGrid,
 }: BodyProps<TData>) => {
@@ -35,72 +123,16 @@ const BodyInner = <TData,>({
       {virtualRows.map((vr) => {
         const row = rows[vr.index];
         if (!row) return null;
-        const leftCells = row.getLeftVisibleCells();
-        const rightCells = row.getRightVisibleCells();
-        const centerCells = row.getCenterVisibleCells();
-        const lastLeft = leftCells.length - 1;
         return (
-          // Row uses transform: translateY for vertical placement; sticky cells
-          // inside transformed parents work in modern Safari but were buggy
-          // historically — if regressions appear, fall back to top: vr.start.
-          <div
+          <VirtualRow
             key={row.id}
-            className="dg-row"
-            style={{
-              height: vr.size,
-              width: "var(--dg-total-width)",
-              transform: `translateY(${vr.start}px)`,
-            }}
-          >
-            {leftCells.map((cell, idx) => (
-              <Cell
-                key={cell.id}
-                cell={cell}
-                height={vr.size}
-                rowId={row.id}
-                columnId={cell.column.id}
-                store={store}
-                focusGrid={focusGrid}
-                className={
-                  idx === lastLeft
-                    ? "dg-cell dg-pinned-left dg-pinned-left-last"
-                    : "dg-cell dg-pinned-left"
-                }
-              />
-            ))}
-            {virtualColumns.map((vc) => {
-              const cell = centerCells[vc.index];
-              if (!cell) return null;
-              return (
-                <Cell
-                  key={cell.id}
-                  cell={cell}
-                  height={vr.size}
-                  rowId={row.id}
-                  columnId={cell.column.id}
-                  store={store}
-                  focusGrid={focusGrid}
-                  className="dg-cell"
-                />
-              );
-            })}
-            {rightCells.map((cell, idx) => (
-              <Cell
-                key={cell.id}
-                cell={cell}
-                height={vr.size}
-                rowId={row.id}
-                columnId={cell.column.id}
-                store={store}
-                focusGrid={focusGrid}
-                className={
-                  idx === 0
-                    ? "dg-cell dg-pinned-right dg-pinned-right-first"
-                    : "dg-cell dg-pinned-right"
-                }
-              />
-            ))}
-          </div>
+            row={row}
+            virtualRow={vr}
+            virtualColumns={virtualColumns}
+            columnLayoutIdentity={columnLayoutIdentity}
+            store={store}
+            focusGrid={focusGrid}
+          />
         );
       })}
     </div>

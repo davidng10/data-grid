@@ -6,6 +6,7 @@ import type { HeaderGroup } from "@tanstack/react-table";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { memo } from "react";
 
+import { GRID_Z_INDEX } from "../../constants";
 import { HeaderCell } from "./HeaderCell";
 import { SortableHeaderCell } from "./SortableHeaderCell";
 
@@ -35,7 +36,11 @@ const HeaderInner = <TData,>({
   return (
     <div
       className="dg-header"
-      style={{ height: height * groupCount, width: "var(--dg-total-width)" }}
+      style={{
+        height: height * groupCount,
+        width: "var(--dg-total-width)",
+        zIndex: GRID_Z_INDEX.header,
+      }}
     >
       {centerHeaderGroups.map((centerGroup, gi) => {
         const leftHeaders = leftHeaderGroups[gi]?.headers ?? [];
@@ -43,8 +48,8 @@ const HeaderInner = <TData,>({
         const rightHeaders = rightHeaderGroups[gi]?.headers ?? [];
         const lastLeft = leftHeaders.length - 1;
 
-        const centerNodes = virtualColumns.map((vc) => {
-          const header = centerHeaders[vc.index];
+        const centerNodes = virtualColumns.map((virtualColumn) => {
+          const header = centerHeaders[virtualColumn.index];
           if (!header) return null;
           return reorderEnabled ? (
             <SortableHeaderCell

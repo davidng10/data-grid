@@ -6,8 +6,10 @@ import type {
 import { flexRender, type Header } from "@tanstack/react-table";
 import { Button, Dropdown, type MenuProps } from "antd";
 import { memo, useMemo, useState, type CSSProperties } from "react";
+import { GRID_Z_INDEX } from "../../constants";
 
 type SortableTransform = { x: number; y: number } | null;
+type HeaderPinnedState = false | "left" | "right";
 
 type Props<TData> = {
   header: Header<TData, unknown>;
@@ -18,8 +20,8 @@ type Props<TData> = {
   // non-dragging cells the prop refs stay stable across pointer-move
   // re-renders inside SortableContext, and React.memo below can skip.
   // Pinned cells receive these as undefined and skip the sortable code.
-  sortableSetNodeRef?: (el: HTMLElement | null) => void;
-  sortableSetActivatorRef?: (el: HTMLElement | null) => void;
+  sortableSetNode?: (el: HTMLElement | null) => void;
+  sortableSetActivatorNode?: (el: HTMLElement | null) => void;
   sortableListeners?: DraggableSyntheticListeners;
   sortableAttributes?: DraggableAttributes;
   sortableTransform?: SortableTransform;
@@ -27,13 +29,70 @@ type Props<TData> = {
   sortableIsDragging?: boolean;
 };
 
+type HeaderCellMenuProps<TData> = {
+  header: Header<TData, unknown>;
+  pinned: HeaderPinnedState;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+const HeaderCellMenuInner = <TData,>({
+  header,
+  pinned,
+  open,
+  onOpenChange,
+}: HeaderCellMenuProps<TData>) => {
+  const items = useMemo<MenuProps["items"]>(
+    () => [
+      {
+        key: "no-pin",
+        label: "No Pin",
+        onClick: () => header.column.pin(false),
+      },
+      {
+        key: "pin-left",
+        label: <span>Pin Left</span>,
+        disabled: pinned === "left",
+        onClick: () => header.column.pin("left"),
+      },
+      {
+        key: "pin-right",
+        label: <span>Pin Right</span>,
+        disabled: pinned === "right",
+        onClick: () => header.column.pin("right"),
+      },
+    ],
+    [header, pinned],
+  );
+
+  return (
+    <Dropdown
+      menu={{ items }}
+      trigger={["click"]}
+      placement="bottomRight"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <Button
+        type="text"
+        size="small"
+        icon={<MoreOutlined />}
+        className="dg-header-cell-trigger"
+        aria-label="Column menu"
+      />
+    </Dropdown>
+  );
+};
+
+const HeaderCellMenu = memo(HeaderCellMenuInner) as typeof HeaderCellMenuInner;
+
 const HeaderCellInner = <TData,>({
   header,
   height,
   className,
   resizeEnabled,
-  sortableSetNodeRef,
-  sortableSetActivatorRef,
+  sortableSetNode,
+  sortableSetActivatorNode,
   sortableListeners,
   sortableAttributes,
   sortableTransform,
@@ -44,27 +103,7 @@ const HeaderCellInner = <TData,>({
   const pinned = header.column.getIsPinned();
   const canResize = header.column.getCanResize();
   const id = header.column.id;
-  const isSortable = Boolean(sortableSetNodeRef);
-
-  const items: MenuProps["items"] = [
-    {
-      key: "no-pin",
-      label: "No Pin",
-      onClick: () => header.column.pin(false),
-    },
-    {
-      key: "pin-left",
-      label: <span>Pin Left</span>,
-      disabled: pinned === "left",
-      onClick: () => header.column.pin("left"),
-    },
-    {
-      key: "pin-right",
-      label: <span>Pin Right</span>,
-      disabled: pinned === "right",
-      onClick: () => header.column.pin("right"),
-    },
-  ];
+  const isSortable = sortableSetNode !== undefined;
 
   let wrapperClassName = className;
   if (menuOpen) wrapperClassName += " dg-header-cell-open";
@@ -84,12 +123,14 @@ const HeaderCellInner = <TData,>({
         height,
         width: `var(--dg-col-${id}-size)`,
         left: `var(--dg-col-${id}-pinned-left)`,
+        zIndex: GRID_Z_INDEX.headerPinnedCell,
       };
     } else if (pinned === "right") {
       base = {
         height,
         width: `var(--dg-col-${id}-size)`,
         right: `var(--dg-col-${id}-pinned-right)`,
+        zIndex: GRID_Z_INDEX.headerPinnedCell,
       };
     } else {
       base = {
@@ -110,21 +151,21 @@ const HeaderCellInner = <TData,>({
       }
     }
     if (sortableIsDragging) {
-      base.zIndex = 5;
+      base.zIndex = GRID_Z_INDEX.draggingHeaderCell;
     }
     return base;
   }, [height, id, pinned, sortableTransform, sortableTransition, sortableIsDragging]);
 
   return (
     <div
-      ref={sortableSetNodeRef}
+      ref={sortableSetNode}
       className={wrapperClassName}
       style={style}
     >
       {!header.isPlaceholder && (
         <>
           <span
-            ref={sortableSetActivatorRef}
+            ref={sortableSetActivatorNode}
             className={
               isSortable
                 ? "dg-header-cell-content dg-header-cell-grab"
@@ -135,24 +176,16 @@ const HeaderCellInner = <TData,>({
           >
             {flexRender(header.column.columnDef.header, header.getContext())}
           </span>
-          <Dropdown
-            menu={{ items }}
-            trigger={["click"]}
-            placement="bottomRight"
+          <HeaderCellMenu
+            header={header}
+            pinned={pinned}
             open={menuOpen}
             onOpenChange={setMenuOpen}
-          >
-            <Button
-              type="text"
-              size="small"
-              icon={<MoreOutlined />}
-              className="dg-header-cell-trigger"
-              aria-label="Column menu"
-            />
-          </Dropdown>
+          />
           {resizeEnabled && canResize && (
             <div
               className="dg-resize-handle"
+              style={{ zIndex: GRID_Z_INDEX.resizeHandle }}
               onMouseDown={header.getResizeHandler()}
               onTouchStart={header.getResizeHandler()}
               onDoubleClick={() => header.column.resetSize()}
