@@ -61,11 +61,13 @@ export const NumberCell = <TData extends RowData>({
       onChange={(v) => setDraft(v as number | null)}
       onPressEnter={handleCommit}
       onBlur={() => {
+        // Click-away discards the draft. Enter still commits via onPressEnter.
+        if (loading) return;
         if (cancelledRef.current) {
           cancelledRef.current = false;
           return;
         }
-        handleCommit();
+        cancel();
       }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {

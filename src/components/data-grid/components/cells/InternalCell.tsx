@@ -37,6 +37,17 @@ const CellInner = <TData,>({
   const isActive = useIsActiveCell(store, rowId, columnId);
   const isEditing = useIsEditingCell(store, rowId, columnId);
   const closeEditor = useCallback(() => {
+    // If the grid has already moved active to another cell (e.g. user clicked
+    // a different cell while we were editing), don't overwrite that selection.
+    // The cancel/commit path can race with that pointerdown when the editor's
+    // blur fires after the grid's setActive.
+    const current = store.getSnapshot();
+    if (
+      current &&
+      (current.rowId !== rowId || current.columnId !== columnId)
+    ) {
+      return;
+    }
     store.setActive(rowId, columnId);
     focusGrid();
   }, [store, rowId, columnId, focusGrid]);

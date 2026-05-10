@@ -1,6 +1,7 @@
 :root {
   --dg-border-color: #d9d9d9;
-  --dg-focus-primary-color: #4142CA;
+  --dg-focus-primary-color: #4142ca;
+  --dg-blur-primary-color: #212121;
 }
 
 .dg-container {
@@ -239,10 +240,20 @@ input.dg-cell-input:disabled {
   padding: 0 12px;
 }
 
-/* Future hook for arrow-key cell nav (image 2). Wire from JS when nav lands. */
 .dg-cell.dg-cell-active {
   box-shadow: inset 0 0 0 1px var(--dg-focus-primary-color);
-  background-color: #f6f6fc;
+  background-color: #ececfa;
+}
+
+/* When focus leaves the grid (and any descendant — editors, popovers inside
+ * the container), mute the active-cell affordance: keep a desaturated border
+ * so the selection still reads, drop the fill so it stops competing with
+ * whatever the user moved focus to. Portaled popups (e.g. AntD Select dropdown)
+ * trip this because they live outside the container; switch to a JS-managed
+ * attribute if that becomes a problem. */
+.dg-container:not(:focus-within) .dg-cell.dg-cell-active {
+  background-color: transparent;
+  
 }
 
 

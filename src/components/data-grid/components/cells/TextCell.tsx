@@ -43,11 +43,15 @@ export const TextCell = <TData extends RowData>({
         disabled={loading}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
+          // Click-away discards the draft. Enter still commits via the
+          // keydown handler below; this branch is reached for blur only
+          // (clicking outside the grid, another cell, the header, etc).
+          if (loading) return;
           if (cancelledRef.current) {
             cancelledRef.current = false;
             return;
           }
-          handleCommit();
+          cancel();
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {

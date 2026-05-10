@@ -104,18 +104,37 @@ export const useCellNavigation = <TData>({
       if (event.button !== 0) return;
       const target = event.target as HTMLElement | null;
       if (!target) return;
+
       const active = store.getSnapshot();
-      if (active?.mode === "edit") return;
-
       const cellEl = target.closest<HTMLElement>(".dg-cell");
-      if (!cellEl) return;
-      const rowId = cellEl.getAttribute("data-row-id");
-      const columnId = cellEl.getAttribute("data-column-id");
-      if (rowId === null || columnId === null) return;
+      const rowId = cellEl?.getAttribute("data-row-id") ?? null;
+      const columnId = cellEl?.getAttribute("data-column-id") ?? null;
 
-      store.setActive(rowId, columnId);
-      // Container needs focus for arrow nav to receive keydowns.
-      scrollRef.current?.focus({ preventScroll: true });
+      // Click on the currently-editing cell: pass through so the editor's
+      // own caret/selection handling wins.
+      if (
+        active?.mode === "edit" &&
+        rowId === active.rowId &&
+        columnId === active.columnId
+      ) {
+        return;
+      }
+
+      if (cellEl && rowId !== null && columnId !== null) {
+        store.setActive(rowId, columnId);
+        // Container needs focus for arrow nav to receive keydowns. Focusing
+        // here also blurs the active editor (if any), which routes through
+        // the editor's onBlur → cancel path to discard its draft.
+        scrollRef.current?.focus({ preventScroll: true });
+        return;
+      }
+
+      // Click within the grid but not on a cell (e.g. header). If editing,
+      // exit edit mode and discard via the editor's blur path.
+      if (active?.mode === "edit") {
+        store.setActive(active.rowId, active.columnId);
+        scrollRef.current?.focus({ preventScroll: true });
+      }
     },
     [store, scrollRef],
   );
