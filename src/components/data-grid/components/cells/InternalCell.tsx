@@ -113,4 +113,25 @@ const CellInner = <TData,>({
   );
 };
 
-export const Cell = memo(CellInner) as typeof CellInner;
+// Column reorder rebuilds `cell` references in TanStack but the underlying
+// columnDef and row.original are stable; the layout-affecting props (className,
+// height, rowId, columnId) are also stable. Without a custom comparator the
+// default shallow compare fails on every reorder and re-renders every cell —
+// observed as a ~120ms self-time spike at drag-end on a ~30×30 visible grid.
+const areCellPropsEqual = <TData,>(
+  prev: CellProps<TData>,
+  next: CellProps<TData>,
+) => {
+  return (
+    prev.height === next.height &&
+    prev.className === next.className &&
+    prev.rowId === next.rowId &&
+    prev.columnId === next.columnId &&
+    prev.store === next.store &&
+    prev.focusGrid === next.focusGrid &&
+    prev.cell.row.original === next.cell.row.original &&
+    prev.cell.column.columnDef === next.cell.column.columnDef
+  );
+};
+
+export const Cell = memo(CellInner, areCellPropsEqual) as typeof CellInner;

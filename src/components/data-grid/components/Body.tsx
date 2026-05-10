@@ -1,6 +1,6 @@
 import { type Row } from "@tanstack/react-table";
 import type { VirtualItem } from "@tanstack/react-virtual";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { Cell } from "./cells/InternalCell";
 import type { GridSelectionStore } from "../store/gridSelectionStore";
 
@@ -32,12 +32,24 @@ const VirtualRowInner = <TData,>({
   row,
   virtualRow,
   virtualColumns,
+  columnLayoutIdentity,
   store,
   focusGrid,
 }: VirtualRowProps<TData>) => {
-  const leftCells = row.getLeftVisibleCells();
-  const centerCells = row.getCenterVisibleCells();
-  const rightCells = row.getRightVisibleCells();
+  // TanStack returns stable cell arrays while the column model is unchanged,
+  // so when the column virtualizer's overscan window shifts (the dominant
+  // arrow-nav re-render path) only `virtualColumns` changes — `row` and
+  // the column layout are identical — and these three calls bail out.
+  // `columnLayoutIdentity` is the invalidation token for pin/order/visibility.
+  const { leftCells, centerCells, rightCells } = useMemo(
+    () => ({
+      leftCells: row.getLeftVisibleCells(),
+      rightCells: row.getRightVisibleCells(),
+      centerCells: row.getCenterVisibleCells(),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [row, columnLayoutIdentity],
+  );
   const lastLeft = leftCells.length - 1;
 
   return (

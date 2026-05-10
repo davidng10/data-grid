@@ -20,15 +20,13 @@ import {
   type RowData,
 } from "@tanstack/react-table";
 
-import { Body } from "./components/Body";
-import { Header } from "./components/header/Header";
+import { GridContent } from "./components/GridContent";
 import {
   DEFAULT_MIN_COLUMN_WIDTH,
   DEFAULT_ROW_OVERSCAN,
   DEFAULT_COLUMN_OVERSCAN,
   DEFAULT_ROW_HEIGHT,
 } from "./constants";
-import { useGridVirtualizers } from "./hooks/useGridVirtualizers";
 import { useCellNavigation } from "./hooks/useCellNavigation";
 import type { DataGridProps } from "./types";
 import "./DataGrid.css";
@@ -99,15 +97,6 @@ export const DataGrid = <TData extends RowData>({
     meta,
   });
 
-  const { rowVirtualizer, columnVirtualizer } = useGridVirtualizers({
-    scrollRef,
-    table,
-    rowCount: data.length,
-    rowHeight,
-    rowOverscan,
-    columnOverscan,
-  });
-
   const columnVars = useMemo<Record<string, string>>(() => {
     const vars: Record<string, string> = {};
     let leftTotal = 0;
@@ -141,14 +130,6 @@ export const DataGrid = <TData extends RowData>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnSizing, columnPinning, columnOrder, columns]);
 
-  const isResizing = Boolean(
-    table.getState().columnSizingInfo.isResizingColumn,
-  );
-  useEffect(() => {
-    if (isResizing) return;
-    columnVirtualizer.measure();
-  }, [columnSizing, isResizing, columnVirtualizer]);
-
   const resizeEnabled = Boolean(onColumnSizingChange);
   const reorderEnabled = Boolean(onColumnOrderChange);
 
@@ -158,15 +139,6 @@ export const DataGrid = <TData extends RowData>({
       ...style,
     };
   }, [columnVars, style]);
-
-  const bodyHeight = rowVirtualizer.getTotalSize();
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const virtualColumns = columnVirtualizer.getVirtualItems();
-
-  const rows = table.getRowModel().rows;
-  const leftHeaderGroups = table.getLeftHeaderGroups();
-  const rightHeaderGroups = table.getRightHeaderGroups();
-  const centerHeaderGroups = table.getCenterHeaderGroups();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -229,24 +201,20 @@ export const DataGrid = <TData extends RowData>({
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
     >
-      <Header
-        height={rowHeight}
+      <GridContent
+        table={table}
+        scrollRef={scrollRef}
+        rowCount={data.length}
+        rowHeight={rowHeight}
+        rowOverscan={rowOverscan}
+        columnOverscan={columnOverscan}
+        columnSizing={columnSizing}
+        centerColumnIds={visibleColumnIds.center}
+        columnLayoutIdentity={columnLayoutIdentity}
+        selectionStore={selectionStore}
+        focusGrid={focusGrid}
         resizeEnabled={resizeEnabled}
         reorderEnabled={reorderEnabled}
-        virtualColumns={virtualColumns}
-        centerColumnIds={visibleColumnIds.center}
-        leftHeaderGroups={leftHeaderGroups}
-        rightHeaderGroups={rightHeaderGroups}
-        centerHeaderGroups={centerHeaderGroups}
-      />
-      <Body
-        rows={rows}
-        bodyHeight={bodyHeight}
-        virtualRows={virtualRows}
-        virtualColumns={virtualColumns}
-        columnLayoutIdentity={columnLayoutIdentity}
-        store={selectionStore}
-        focusGrid={focusGrid}
       />
     </div>
   );
